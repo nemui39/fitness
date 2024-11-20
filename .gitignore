@@ -1,0 +1,21 @@
+# Python 仮想環境
+myenv/
+
+# キャッシュファイル
+__pycache__/
+*.pyc
+
+# OS 依存ファイル
+.DS_Store
+Thumbs.db
+
+# エディタやIDE関連
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# その他
+fitness_progress.png
+nutrition_project/
+fitness_data.json
