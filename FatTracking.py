@@ -363,6 +363,24 @@ class SimpleFitnessTracker:
             plt.grid(True)
             plt.legend(prop=font_prop)
             
+            # 除脂肪体重と脂肪量のグラフのY軸範囲を計算
+            lean_min = df['lean_body_mass'].min()
+            lean_max = df['lean_body_mass'].max()
+            fat_min = df['fat_mass'].min()
+            fat_max = df['fat_mass'].max()
+
+            # それぞれの変動幅を計算
+            lean_range = lean_max - lean_min
+            fat_range = fat_max - fat_min
+
+            # より大きい方の変動幅を基準にする
+            max_range = max(lean_range, fat_range)
+            padding = max_range * 0.1
+
+            # それぞれのデータの中心点を計算
+            lean_center = (lean_max + lean_min) / 2
+            fat_center = (fat_max + fat_min) / 2
+
             # 除脂肪体重のプロット
             plt.subplot(2, 2, 3)
             plt.plot(df['date'], df['lean_body_mass'], 'o-', color='green', label='除脂肪体重', alpha=0.5)
@@ -373,7 +391,8 @@ class SimpleFitnessTracker:
             plt.ylabel('除脂肪体重 (kg)', fontproperties=font_prop, fontsize=10)
             plt.grid(True)
             plt.legend(prop=font_prop)
-            
+            plt.ylim(lean_center - (max_range/2 + padding), lean_center + (max_range/2 + padding))
+
             # 脂肪量のプロット
             plt.subplot(2, 2, 4)
             plt.plot(df['date'], df['fat_mass'], 'o-', color='purple', label='脂肪量', alpha=0.5)
@@ -384,6 +403,7 @@ class SimpleFitnessTracker:
             plt.ylabel('脂肪量 (kg)', fontproperties=font_prop, fontsize=10)
             plt.grid(True)
             plt.legend(prop=font_prop)
+            plt.ylim(fat_center - (max_range/2 + padding), fat_center + (max_range/2 + padding))
             
             plt.tight_layout()
             plt.savefig('fitness_progress.png', dpi=100, bbox_inches='tight')
