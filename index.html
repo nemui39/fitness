@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitness Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22222e;
+    --border: #2a2a3a;
+    --accent: #6c5ce7;
+    --accent2: #00cec9;
+    --accent3: #fd79a8;
+    --accent4: #fdcb6e;
+    --text: #e0e0e8;
+    --text2: #8888a0;
+    --success: #00b894;
+    --danger: #e17055;
+    --radius: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header h1 {
+    font-size: 1.5rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header-date { color: var(--text2); font-size: 0.9rem; }
+
+  /* Nav */
+  .nav {
+    display: flex; gap: 4px; padding: 12px 32px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .nav-btn {
+    padding: 10px 20px; border: none; background: transparent;
+    color: var(--text2); font-size: 0.85rem; font-weight: 600;
+    border-radius: 10px; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .nav-btn:hover { background: var(--surface2); color: var(--text); }
+  .nav-btn.active { background: var(--accent); color: #fff; }
+
+  .main { padding: 24px 32px; max-width: 1200px; margin: 0 auto; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Card */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 1.1rem; font-weight: 700; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .grid-7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+
+  @media (max-width: 900px) {
+    .grid-2, .grid-3, .grid-5 { grid-template-columns: 1fr; }
+    .grid-7 { grid-template-columns: repeat(4, 1fr); }
+    .main { padding: 16px; }
+    .header, .nav { padding-left: 16px; padding-right: 16px; }
+  }
+
+  /* Stats */
+  .stat-card {
+    background: var(--surface2); border-radius: 12px; padding: 20px; text-align: center;
+  }
+  .stat-value { font-size: 2rem; font-weight: 800; margin: 4px 0; }
+  .stat-label {
+    font-size: 0.75rem; color: var(--text2); text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* Day card */
+  .day-card {
+    background: var(--surface2); border-radius: 12px; padding: 16px;
+    border: 2px solid transparent; transition: all 0.3s; cursor: pointer;
+  }
+  .day-card.today { border-color: var(--accent); box-shadow: 0 0 20px rgba(108,92,231,0.2); }
+  .day-card.rest { opacity: 0.5; cursor: default; }
+  .day-card .day-name {
+    font-size: 0.75rem; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;
+  }
+  .day-card .day-target { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
+  .day-card .day-exercises { font-size: 0.8rem; color: var(--text2); line-height: 1.6; }
+
+  /* Buttons */
+  .btn {
+    padding: 12px 28px; border: none; border-radius: 10px;
+    font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.2); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-sm { padding: 6px 16px; font-size: 0.8rem; }
+
+  .completed-badge {
+    display: inline-block; background: var(--success); color: #fff;
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 700;
+  }
+
+  /* Workout detail */
+  .workout-exercise {
+    background: var(--surface2); border-radius: 12px; padding: 20px; margin-bottom: 12px;
+    border: 1px solid var(--border);
+  }
+  .workout-exercise.completed-ex { border-color: var(--success); opacity: 0.6; }
+  .exercise-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+  }
+  .exercise-name { font-size: 1.05rem; font-weight: 700; }
+  .exercise-meta { font-size: 0.85rem; color: var(--accent2); font-weight: 600; }
+  .exercise-note { font-size: 0.8rem; color: var(--text2); margin-top: 8px; line-height: 1.5; }
+  .set-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid var(--border); font-size: 0.9rem;
+  }
+  .set-row:last-child { border: none; }
+  .set-label { width: 60px; color: var(--text2); font-weight: 600; }
+  .set-input {
+    width: 70px; padding: 6px 10px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--bg); color: var(--text);
+    font-size: 0.9rem; text-align: center;
+  }
+  .set-input:focus { outline: none; border-color: var(--accent); }
+  .set-check {
+    appearance: none; width: 22px; height: 22px; border: 2px solid var(--border);
+    border-radius: 6px; cursor: pointer; position: relative; flex-shrink: 0;
+  }
+  .set-check:checked { background: var(--success); border-color: var(--success); }
+  .set-check:checked::after {
+    content: '\2713'; position: absolute; top: 0; left: 3px; color: #fff; font-size: 14px; font-weight: bold;
+  }
+
+  /* Rest Timer */
+  .rest-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85); z-index: 200;
+    justify-content: center; align-items: center; flex-direction: column;
+  }
+  .rest-overlay.active { display: flex; }
+  .rest-timer-display {
+    font-size: 8rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .rest-label { font-size: 1.2rem; color: var(--text2); margin-bottom: 20px; }
+  .rest-progress {
+    width: 300px; height: 6px; background: var(--surface2); border-radius: 3px;
+    margin: 24px 0; overflow: hidden;
+  }
+  .rest-progress-bar {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px; transition: width 0.3s;
+  }
+  .rest-controls { display: flex; gap: 12px; margin-top: 16px; }
+
+  /* Bike timer */
+  .timer-display {
+    font-size: 4rem; font-weight: 800; text-align: center;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin: 24px 0;
+  }
+  .timer-controls { display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; }
+
+  .intensity-select { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
+  .intensity-btn {
+    padding: 6px 16px; border: 1px solid var(--border); border-radius: 20px;
+    background: transparent; color: var(--text2); cursor: pointer; font-size: 0.8rem;
+    font-weight: 600; transition: all 0.2s;
+  }
+  .intensity-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Form */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 0.85rem; color: var(--text2); margin-bottom: 6px; font-weight: 600; }
+  .form-group input, .form-group select {
+    width: 100%; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--surface2); color: var(--text); font-size: 1rem;
+  }
+  .form-group input:focus { outline: none; border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* Condition */
+  .condition-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .condition-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: var(--surface2); border-radius: 8px;
+  }
+  .condition-label { font-size: 0.85rem; color: var(--text2); }
+  .condition-stars { display: flex; gap: 4px; }
+  .star-btn {
+    background: none; border: none; font-size: 1.2rem; cursor: pointer;
+    color: var(--border); transition: color 0.2s;
+  }
+  .star-btn.active { color: var(--accent4); }
+
+  /* Table */
+  .history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .history-table th {
+    text-align: left; padding: 10px 12px; color: var(--text2); font-weight: 600;
+    border-bottom: 1px solid var(--border); font-size: 0.8rem; text-transform: uppercase;
+  }
+  .history-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .history-table tr:hover td { background: var(--surface2); }
+  .delete-btn {
+    background: none; border: none; color: var(--danger); cursor: pointer;
+    font-size: 0.8rem; opacity: 0.6;
+  }
+  .delete-btn:hover { opacity: 1; }
+
+  .chart-container { position: relative; height: 300px; margin-top: 16px; }
+
+  /* Settings */
+  .setting-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .setting-row label { font-size: 0.9rem; }
+  .setting-row input {
+    width: 80px; padding: 6px 10px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--surface2); color: var(--text);
+    font-size: 0.9rem; text-align: center;
+  }
+
+  .bike-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 900px) { .bike-stats { grid-template-columns: repeat(2, 1fr); } }
+  .bike-stat {
+    background: var(--surface2); border-radius: 12px; padding: 20px;
+    text-align: center; position: relative; overflow: hidden;
+  }
+  .bike-stat::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .empty-state { text-align: center; padding: 40px; color: var(--text2); }
+
+  .section-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 20px; }
+
+  .today-workout {
+    background: linear-gradient(135deg, rgba(108,92,231,0.1), rgba(0,206,201,0.1));
+    border: 1px solid var(--accent); border-radius: var(--radius);
+    padding: 24px; margin-bottom: 24px;
+  }
+  .today-workout h3 { color: var(--accent2); margin-bottom: 12px; font-size: 1.2rem; }
+
+  .calorie-live {
+    font-size: 3rem; font-weight: 800; color: var(--accent4); text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- Rest Timer Overlay -->
+<div class="rest-overlay" id="restOverlay">
+  <div class="rest-label" id="restLabel">REST</div>
+  <div class="rest-timer-display" id="restTimerDisplay">90</div>
+  <div class="rest-progress"><div class="rest-progress-bar" id="restProgressBar"></div></div>
+  <div class="rest-controls">
+    <button class="btn btn-secondary" onclick="addRestTime(-15)">-15s</button>
+    <button class="btn btn-danger" onclick="skipRest()">SKIP</button>
+    <button class="btn btn-secondary" onclick="addRestTime(15)">+15s</button>
+  </div>
+</div>
+
+<div class="header">
+  <h1>FITNESS DASHBOARD</h1>
+  <span class="header-date" id="headerDate"></span>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
+  <button class="nav-btn" onclick="switchTab('workout',this)">Workout</button>
+  <button class="nav-btn" onclick="switchTab('bike',this)">Bike</button>
+  <button class="nav-btn" onclick="switchTab('weight',this)">Weight</button>
+  <button class="nav-btn" onclick="switchTab('settings',this)">Settings</button>
+</nav>
+
+<div class="main">
+
+<!-- ===== DASHBOARD ===== -->
+<div id="tab-dashboard" class="tab-content active">
+  <div id="todaySection"></div>
+  <div class="grid-3" id="dashStats"></div>
+  <div class="card">
+    <div class="card-title">Weekly Overview</div>
+    <div class="grid-7" id="weekOverview"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Weight Trend</div>
+      <div class="chart-container"><canvas id="dashWeightChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Bike Activity</div>
+      <div class="chart-container"><canvas id="dashBikeChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== WORKOUT ===== -->
+<div id="tab-workout" class="tab-content">
+  <div id="workoutDaySelector"></div>
+  <div id="workoutDetail"></div>
+  <div class="card" style="margin-top:20px;">
+    <div class="card-title">Condition Record</div>
+    <div class="condition-grid" id="conditionGrid"></div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-success" onclick="saveWorkoutLog()" style="width:100%">Save Today's Record</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:20px;">
+    <div class="card-title">Workout History</div>
+    <div style="max-height:400px;overflow-y:auto;" id="workoutHistory"></div>
+  </div>
+</div>
+
+<!-- ===== BIKE ===== -->
+<div id="tab-bike" class="tab-content">
+  <h2 class="section-title">Fitness Bike (25 min)</h2>
+  <div class="bike-stats" id="bikeOverview"></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Session Timer</div>
+      <div class="timer-display" id="bikeTimerDisplay">25:00</div>
+      <div class="timer-controls">
+        <button class="btn btn-primary" id="bikeStartBtn" onclick="toggleBikeTimer()">Start</button>
+        <button class="btn btn-danger" onclick="resetBikeTimer()" id="bikeResetBtn" disabled>Reset</button>
+      </div>
+      <div class="intensity-select">
+        <button class="intensity-btn" onclick="setBikeIntensity('light',this)">Light</button>
+        <button class="intensity-btn active" onclick="setBikeIntensity('moderate',this)">Moderate</button>
+        <button class="intensity-btn" onclick="setBikeIntensity('intense',this)">Intense</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Distance (km)</label>
+          <input type="number" id="bikeDistance" step="0.1" placeholder="0.0">
+        </div>
+        <div class="form-group">
+          <label>Resistance</label>
+          <input type="number" id="bikeResistance" min="1" max="20" value="5">
+        </div>
+      </div>
+      <button class="btn btn-success" onclick="saveBikeSession()" style="width:100%">Save Session</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Estimated Calories</div>
+      <div style="text-align:center;padding:20px;">
+        <div class="calorie-live" id="liveCalories">0</div>
+        <div style="color:var(--text2);margin-top:4px;">kcal</div>
+      </div>
+      <div class="grid-2" style="margin-top:16px;">
+        <div class="stat-card">
+          <div class="stat-label">AVG/Session</div>
+          <div class="stat-value" style="font-size:1.5rem;color:var(--accent2)" id="avgBikeCal">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">This Week</div>
+          <div class="stat-value" style="font-size:1.5rem;color:var(--accent3)" id="weekBikeCal">--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Session History</div>
+    <div class="chart-container"><canvas id="bikeChart"></canvas></div>
+    <div style="margin-top:20px;max-height:300px;overflow-y:auto;">
+      <table class="history-table" id="bikeTable"><thead>
+        <tr><th>Date</th><th>Duration</th><th>Distance</th><th>Intensity</th><th>Cal</th><th></th></tr>
+      </thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== WEIGHT ===== -->
+<div id="tab-weight" class="tab-content">
+  <h2 class="section-title">Weight & Body Fat</h2>
+  <div class="grid-3" id="weightStats"></div>
+  <div class="grid-2" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title">Record Entry</div>
+      <div class="form-row">
+        <div class="form-group"><label>Weight (kg)</label><input type="number" id="weightInput" step="0.1" placeholder="70.0"></div>
+        <div class="form-group"><label>Body Fat (%)</label><input type="number" id="bfInput" step="0.1" placeholder="24.0"></div>
+      </div>
+      <button class="btn btn-primary" onclick="saveWeight()" style="width:100%">Save</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Calorie Balance</div>
+      <div id="calBalance"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Weight Trend</div>
+    <div class="chart-container" style="height:350px"><canvas id="weightChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">History</div>
+    <div style="max-height:300px;overflow-y:auto;">
+      <table class="history-table" id="weightTable"><thead>
+        <tr><th>Date</th><th>Weight</th><th>BF%</th><th>Lean</th><th>Fat</th><th></th></tr>
+      </thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div id="tab-settings" class="tab-content">
+  <h2 class="section-title">Rest Timer Settings</h2>
+  <div class="card" id="settingsCard"></div>
+  <div class="card" style="margin-top:20px;">
+    <div class="card-title">Target Settings</div>
+    <div class="setting-row">
+      <label>Target Weight (kg)</label>
+      <input type="number" id="targetWeight" step="0.1" value="58" onchange="saveSettings()">
+    </div>
+    <div class="setting-row">
+      <label>Bike Duration (min)</label>
+      <input type="number" id="bikeDuration" min="5" max="60" value="25" onchange="saveSettings()">
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ============================================================
+// SCHEDULE - Your actual menu
+// ============================================================
+const SCHEDULE = [
+  {
+    day: 'Mon', dayJa: '月', label: 'Shoulders & Back',
+    labelJa: '肩・背中',
+    color: '#0984e3',
+    exercises: [
+      { name: 'Chin-up (Parallel/Normal)', nameJa: '懸垂（パラレル／通常）', sets: 3, reps: 'Max', rest: 90, note: 'No kipping. Pull with back.' },
+      { name: 'Tube Lean-Away Side Raise', nameJa: 'チューブ斜めサイドレイズ', sets: 3, reps: '12-15 each', rest: 60, note: 'Lean body sideways holding a pole. Target lateral deltoid.' },
+      { name: 'Tube Face Pull', nameJa: 'チューブ・フェイスプル', sets: 3, reps: '15', rest: 60, note: 'Pull to face height. Squeeze shoulder blades.' },
+    ]
+  },
+  {
+    day: 'Tue', dayJa: '火', label: 'Lower Body + Abs',
+    labelJa: '下半身＋腹筋',
+    color: '#00b894',
+    exercises: [
+      { name: 'Bulgarian Squat (Wide)', nameJa: 'ブルガリアンスクワット（ワイド）', sets: 3, reps: '15-20 each', rest: 90, note: 'Wide stance, toes 45 degrees out. Focus on outer glutes. 30s between legs.' },
+      { name: 'Ab Roller (Kneeling)', nameJa: 'アブローラー（膝コロ）', sets: 3, reps: '10', rest: 60, note: 'Keep looking at belly button. Never arch lower back.' },
+    ]
+  },
+  {
+    day: 'Wed', dayJa: '水', label: 'Recovery',
+    labelJa: '筋トレ休み',
+    color: '#636e72',
+    exercises: [],
+    bikeOnly: true
+  },
+  {
+    day: 'Thu', dayJa: '木', label: 'Upper Body',
+    labelJa: '上半身メイン',
+    color: '#6c5ce7',
+    exercises: [
+      { name: 'Push-up (Slow Tempo)', nameJa: 'プッシュアップ（スロー）', sets: 3, reps: '15-20', rest: 90, note: '2s down, 1s hold, 1s up. Focus on chest contraction.' },
+      { name: 'Chin-up (Form Focus)', nameJa: '懸垂（フォーム重視）', sets: 3, reps: 'Max', rest: 90, note: 'Stop the set when form breaks down.' },
+    ]
+  },
+  {
+    day: 'Fri', dayJa: '金', label: 'Chest & Arms',
+    labelJa: '胸・腕',
+    color: '#e17055',
+    exercises: [
+      { name: 'Dips', nameJa: 'ディップス', sets: 3, reps: '5-6', rest: 90, note: 'Lean forward slightly. Go deep to 90 degrees.' },
+      { name: 'Close-Grip Push-up', nameJa: 'クローズプッシュアップ', sets: 3, reps: '12-15', rest: 90, note: 'Narrow hand placement. Target triceps.' },
+    ]
+  },
+];
+
+// Sat=5, Sun=6 → rest days
+
+// ============================================================
+// DATA
+// ============================================================
+const KEYS = { weight: 'ft_weight', bike: 'ft_bike', workout: 'ft_workout', settings: 'ft_settings', condition: 'ft_condition' };
+function load(k) { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
+function save(k, d) { localStorage.setItem(k, JSON.stringify(d)); }
+function loadObj(k, def) { try { return JSON.parse(localStorage.getItem(k)) || def; } catch { return def; } }
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function getSettings() {
+  return loadObj(KEYS.settings, { targetWeight: 58, bikeDuration: 25 });
+}
+function saveSettings() {
+  const s = {
+    targetWeight: parseFloat(document.getElementById('targetWeight').value) || 58,
+    bikeDuration: parseInt(document.getElementById('bikeDuration').value) || 25,
+  };
+  save(KEYS.settings, s);
+}
+
+// Exercise rest times (editable)
+function getRestTimes() {
+  return loadObj('ft_rest_times', null);
+}
+function setRestTime(dayIdx, exIdx, val) {
+  const times = getRestTimes() || {};
+  const key = `${dayIdx}_${exIdx}`;
+  times[key] = parseInt(val);
+  save('ft_rest_times', times);
+}
+function getExerciseRest(dayIdx, exIdx, defaultRest) {
+  const times = getRestTimes();
+  if (!times) return defaultRest;
+  return times[`${dayIdx}_${exIdx}`] || defaultRest;
+}
+
+// ============================================================
+// REST TIMER
+// ============================================================
+let restInterval = null;
+let restRemaining = 0;
+let restTotal = 0;
+
+function startRest(seconds, label) {
+  restTotal = seconds;
+  restRemaining = seconds;
+  const overlay = document.getElementById('restOverlay');
+  overlay.classList.add('active');
+  document.getElementById('restLabel').textContent = label || 'REST';
+  updateRestDisplay();
+
+  // Play a short beep via AudioContext
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 440;
+    osc.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.1);
+  } catch {}
+
+  clearInterval(restInterval);
+  restInterval = setInterval(() => {
+    restRemaining--;
+    if (restRemaining <= 0) {
+      finishRest();
+      return;
+    }
+    updateRestDisplay();
+  }, 1000);
+}
+
+function updateRestDisplay() {
+  document.getElementById('restTimerDisplay').textContent = restRemaining;
+  const pct = ((restTotal - restRemaining) / restTotal) * 100;
+  document.getElementById('restProgressBar').style.width = pct + '%';
+}
+
+function finishRest() {
+  clearInterval(restInterval);
+  document.getElementById('restOverlay').classList.remove('active');
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 880;
+    osc.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.3);
+  } catch {}
+}
+
+function skipRest() { finishRest(); }
+function addRestTime(delta) {
+  restRemaining = Math.max(1, restRemaining + delta);
+  restTotal = Math.max(restTotal, restRemaining);
+  updateRestDisplay();
+}
+
+// ============================================================
+// BIKE TIMER
+// ============================================================
+let bikeInterval = null;
+let bikeSeconds = 0;
+let bikeRunning = false;
+let bikeIntensity = 'moderate';
+const CAL_RATES = { light: 5, moderate: 8, intense: 12 };
+
+function fmtTime(s) {
+  const m = String(Math.floor(s / 60)).padStart(2, '0');
+  const sec = String(s % 60).padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
+function toggleBikeTimer() {
+  const btn = document.getElementById('bikeStartBtn');
+  if (bikeRunning) {
+    clearInterval(bikeInterval);
+    bikeRunning = false;
+    btn.textContent = 'Resume';
+    btn.className = 'btn btn-primary';
+    document.getElementById('bikeResetBtn').disabled = false;
+  } else {
+    bikeRunning = true;
+    btn.textContent = 'Pause'; btn.className = 'btn btn-danger';
+    document.getElementById('bikeResetBtn').disabled = false;
+    bikeInterval = setInterval(() => {
+      bikeSeconds++;
+      document.getElementById('bikeTimerDisplay').textContent = fmtTime(bikeSeconds);
+      document.getElementById('liveCalories').textContent = Math.round((bikeSeconds / 60) * CAL_RATES[bikeIntensity]);
+    }, 1000);
+  }
+}
+
+function resetBikeTimer() {
+  clearInterval(bikeInterval); bikeRunning = false; bikeSeconds = 0;
+  const s = getSettings();
+  document.getElementById('bikeTimerDisplay').textContent = fmtTime(s.bikeDuration * 60);
+  document.getElementById('bikeStartBtn').textContent = 'Start';
+  document.getElementById('bikeStartBtn').className = 'btn btn-primary';
+  document.getElementById('bikeResetBtn').disabled = true;
+  document.getElementById('liveCalories').textContent = '0';
+}
+
+function setBikeIntensity(level, el) {
+  bikeIntensity = level;
+  document.querySelectorAll('.intensity-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function saveBikeSession() {
+  if (bikeSeconds < 30) { alert('Start the timer first!'); return; }
+  const cal = Math.round((bikeSeconds / 60) * CAL_RATES[bikeIntensity]);
+  const rec = {
+    date: new Date().toISOString(), duration: bikeSeconds,
+    distance: parseFloat(document.getElementById('bikeDistance').value) || 0,
+    resistance: parseInt(document.getElementById('bikeResistance').value) || 5,
+    intensity: bikeIntensity, calories: cal
+  };
+  const data = load(KEYS.bike); data.push(rec); save(KEYS.bike, data);
+  resetBikeTimer();
+  document.getElementById('bikeDistance').value = '';
+  renderBike(); renderDashboard();
+}
+
+function deleteBike(i) {
+  const d = load(KEYS.bike); d.splice(i, 1); save(KEYS.bike, d);
+  renderBike(); renderDashboard();
+}
+
+// ============================================================
+// WEIGHT
+// ============================================================
+function saveWeight() {
+  const w = parseFloat(document.getElementById('weightInput').value);
+  const b = parseFloat(document.getElementById('bfInput').value);
+  if (!w || !b) { alert('Both fields required.'); return; }
+  const d = load(KEYS.weight); d.push({ date: new Date().toISOString(), weight: w, bf: b });
+  save(KEYS.weight, d);
+  document.getElementById('weightInput').value = '';
+  document.getElementById('bfInput').value = '';
+  renderWeightTab(); renderDashboard();
+}
+function deleteWeight(i) {
+  const d = load(KEYS.weight); d.splice(i, 1); save(KEYS.weight, d);
+  renderWeightTab(); renderDashboard();
+}
+
+// ============================================================
+// WORKOUT LOG
+// ============================================================
+let workoutSetData = {}; // { "dayIdx_exIdx_setIdx": { reps: N, done: bool } }
+
+function getScheduleIndex() {
+  const dow = new Date().getDay(); // 0=Sun
+  if (dow >= 1 && dow <= 5) return dow - 1; // Mon=0..Fri=4
+  return -1;
+}
+
+function saveWorkoutLog() {
+  const dayIdx = getScheduleIndex();
+  const conditions = {};
+  document.querySelectorAll('[data-cond]').forEach(el => {
+    conditions[el.dataset.cond] = parseInt(el.dataset.value) || 0;
+  });
+
+  const exercises = [];
+  if (dayIdx >= 0 && SCHEDULE[dayIdx]) {
+    SCHEDULE[dayIdx].exercises.forEach((ex, ei) => {
+      const sets = [];
+      for (let si = 0; si < ex.sets; si++) {
+        const key = `${dayIdx}_${ei}_${si}`;
+        const input = document.getElementById(`reps_${key}`);
+        const check = document.getElementById(`check_${key}`);
+        sets.push({ reps: input ? input.value : '', done: check ? check.checked : false });
+      }
+      exercises.push({ name: ex.name, sets });
+    });
+  }
+
+  const data = load(KEYS.workout);
+  const existing = data.findIndex(d => d.date === todayStr());
+  const record = { date: todayStr(), dayIdx, conditions, exercises };
+  if (existing >= 0) data[existing] = record;
+  else data.push(record);
+  save(KEYS.workout, data);
+  alert('Saved!');
+  renderWorkout(); renderDashboard();
+}
+
+function isTodayWorkoutDone() {
+  return load(KEYS.workout).some(d => d.date === todayStr());
+}
+
+// ============================================================
+// CHARTS
+// ============================================================
+let charts = {};
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+const CHART_OPTS = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: '#8888a0', font: { size: 11 } } } },
+  scales: {
+    x: { ticks: { color: '#8888a0', font: { size: 10 } }, grid: { color: '#2a2a3a' } },
+    y: { ticks: { color: '#8888a0', font: { size: 10 } }, grid: { color: '#2a2a3a' } },
+  }
+};
+
+function movingAvg(arr, w) {
+  return arr.map((_, i) => {
+    if (i < w - 1) return null;
+    return arr.slice(i - w + 1, i + 1).reduce((a, b) => a + b, 0) / w;
+  });
+}
+
+// ============================================================
+// RENDERERS
+// ============================================================
+function renderDashboard() {
+  const now = new Date();
+  const dow = now.getDay();
+  document.getElementById('headerDate').textContent = now.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+  // Today
+  const ts = document.getElementById('todaySection');
+  const dayIdx = getScheduleIndex();
+  if (dayIdx >= 0) {
+    const s = SCHEDULE[dayIdx];
+    const done = isTodayWorkoutDone();
+    if (s.bikeOnly) {
+      ts.innerHTML = `<div class="today-workout">
+        <h3>${s.dayJa} - ${s.labelJa} ${done ? '<span class="completed-badge">DONE</span>' : ''}</h3>
+        <p style="color:var(--text2)">Bike only day. Stretch and ride.</p>
+        <div style="margin-top:12px;"><button class="btn btn-primary" onclick="switchTab('bike',this)">Go to Bike Timer</button></div>
+      </div>`;
+    } else {
+      ts.innerHTML = `<div class="today-workout">
+        <h3>${s.dayJa} - ${s.labelJa} ${done ? '<span class="completed-badge">DONE</span>' : ''}</h3>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">
+          ${s.exercises.map(e => `<span style="color:var(--text2);font-size:0.9rem;">${e.nameJa} <span style="color:var(--accent2)">${e.sets}x${e.reps}</span></span>`).join(' | ')}
+        </div>
+        <div style="margin-top:8px;color:var(--text2);font-size:0.85rem;">+ Bike 25 min</div>
+        <div style="margin-top:12px;"><button class="btn btn-primary" onclick="switchTab('workout',document.querySelectorAll('.nav-btn')[1])">Start Workout</button></div>
+      </div>`;
+    }
+  } else {
+    ts.innerHTML = `<div class="today-workout"><h3>REST DAY</h3><p style="color:var(--text2)">Enjoy recovery. Sleep well, eat protein.</p></div>`;
+  }
+
+  // Stats
+  const wd = load(KEYS.weight);
+  const bd = load(KEYS.bike);
+  const last = wd.length ? wd[wd.length - 1] : null;
+  const prev = wd.length > 1 ? wd[wd.length - 2] : null;
+  const weekBike = bd.filter(b => (now - new Date(b.date)) / 86400000 <= 7);
+  const weekCal = weekBike.reduce((s, b) => s + b.calories, 0);
+  const weekDur = weekBike.reduce((s, b) => s + b.duration, 0);
+  const settings = getSettings();
+
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Weight</div>
+      <div class="stat-value" style="color:var(--accent)">${last ? last.weight.toFixed(1) : '--'}</div>
+      <div class="stat-label">kg${last ? ` (target: ${settings.targetWeight})` : ''}</div>
+      ${prev ? `<div style="color:${last.weight<=prev.weight?'var(--success)':'var(--danger)'};font-size:0.85rem;margin-top:4px;">${(last.weight-prev.weight)>0?'+':''}${(last.weight-prev.weight).toFixed(1)}</div>` : ''}
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Body Fat</div>
+      <div class="stat-value" style="color:var(--accent3)">${last ? last.bf.toFixed(1) : '--'}%</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">This Week Bike</div>
+      <div class="stat-value" style="color:var(--accent2)">${weekCal}</div>
+      <div class="stat-label">kcal / ${Math.round(weekDur/60)} min</div>
+    </div>`;
+
+  // Week overview
+  const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const wkData = load(KEYS.workout);
+  let wh = '';
+  for (let i = 0; i < 7; i++) {
+    const isToday = (i + 1) === dow || (i === 6 && dow === 0);
+    const isRest = i >= 5;
+    const sched = i < 5 ? SCHEDULE[i] : null;
+    const done = wkData.some(d => d.date === todayStr() && d.dayIdx === i);
+    wh += `<div class="day-card${isToday ? ' today' : ''}${isRest ? ' rest' : ''}">
+      <div class="day-name">${dayLabels[i]}</div>
+      <div class="day-target" style="font-size:0.85rem;${sched ? 'color:'+sched.color : ''}">${isRest ? 'REST' : sched.labelJa}</div>
+      ${!isRest ? '<div class="day-exercises">+ Bike</div>' : ''}
+      ${done && isToday ? '<span class="completed-badge">DONE</span>' : ''}
+    </div>`;
+  }
+  document.getElementById('weekOverview').innerHTML = wh;
+
+  // Mini charts
+  destroyChart('dashW');
+  const wCtx = document.getElementById('dashWeightChart');
+  if (wCtx && wd.length >= 2) {
+    const r = wd.slice(-14);
+    charts.dashW = new Chart(wCtx, {
+      type: 'line',
+      data: {
+        labels: r.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+        datasets: [{ label: 'Weight', data: r.map(d=>d.weight), borderColor: '#6c5ce7', backgroundColor: 'rgba(108,92,231,0.1)', fill: true, tension: 0.3, pointRadius: 3 }]
+      }, options: CHART_OPTS
+    });
+  }
+  destroyChart('dashB');
+  const bCtx = document.getElementById('dashBikeChart');
+  if (bCtx && bd.length) {
+    const r = bd.slice(-14);
+    charts.dashB = new Chart(bCtx, {
+      type: 'bar',
+      data: {
+        labels: r.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+        datasets: [{ label: 'Calories', data: r.map(d=>d.calories), backgroundColor: 'rgba(0,206,201,0.6)', borderRadius: 6 }]
+      }, options: CHART_OPTS
+    });
+  }
+}
+
+function renderWorkout() {
+  const dayIdx = getScheduleIndex();
+
+  // Day selector tabs
+  let selHtml = '<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">';
+  for (let i = 0; i < 5; i++) {
+    const s = SCHEDULE[i];
+    const isActive = i === dayIdx;
+    selHtml += `<button class="btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="renderWorkoutDay(${i})" style="border-left:3px solid ${s.color}">${s.dayJa} ${s.labelJa}</button>`;
+  }
+  selHtml += '</div>';
+  document.getElementById('workoutDaySelector').innerHTML = selHtml;
+
+  renderWorkoutDay(dayIdx >= 0 ? dayIdx : 0);
+  renderCondition();
+  renderWorkoutHistory();
+}
+
+function renderWorkoutDay(dayIdx) {
+  const s = SCHEDULE[dayIdx];
+  const detail = document.getElementById('workoutDetail');
+
+  if (s.bikeOnly) {
+    detail.innerHTML = `<div class="card">
+      <div class="card-title" style="color:${s.color}">${s.dayJa} - ${s.labelJa}</div>
+      <p style="color:var(--text2)">No strength training today. Focus on recovery stretching and bike session (25 min).</p>
+      <ul style="color:var(--text2);margin:16px 0 0 20px;line-height:2;">
+        <li>Light stretching / foam rolling</li>
+        <li>Heart rate target: 120-130 bpm</li>
+        <li>Can combine with watching videos or reading</li>
+      </ul>
+      <div style="margin-top:16px;"><button class="btn btn-primary" onclick="switchTab('bike',document.querySelectorAll('.nav-btn')[2])">Go to Bike Timer</button></div>
+    </div>`;
+    return;
+  }
+
+  let html = `<div class="card"><div class="card-title" style="color:${s.color}">${s.dayJa} - ${s.labelJa}</div>`;
+
+  s.exercises.forEach((ex, ei) => {
+    const rest = getExerciseRest(dayIdx, ei, ex.rest);
+    html += `<div class="workout-exercise" id="exercise_${dayIdx}_${ei}">
+      <div class="exercise-header">
+        <div>
+          <div class="exercise-name">${ex.nameJa}</div>
+          <div style="font-size:0.8rem;color:var(--text2);margin-top:2px;">${ex.name}</div>
+        </div>
+        <div class="exercise-meta">${ex.sets} x ${ex.reps}</div>
+      </div>
+      <div class="exercise-note">${ex.note}</div>
+      <div style="margin-top:12px;">`;
+
+    for (let si = 0; si < ex.sets; si++) {
+      const key = `${dayIdx}_${ei}_${si}`;
+      html += `<div class="set-row">
+        <span class="set-label">Set ${si + 1}</span>
+        <input type="text" class="set-input" id="reps_${key}" placeholder="${ex.reps}">
+        <input type="checkbox" class="set-check" id="check_${key}">
+        <button class="btn btn-secondary btn-sm" onclick="startRest(${rest},'${ex.nameJa} - Set ${si+1} Rest')" style="padding:4px 12px;font-size:0.75rem;">REST ${rest}s</button>
+      </div>`;
+    }
+
+    html += `</div></div>`;
+  });
+
+  // Bike reminder
+  html += `<div class="workout-exercise" style="border-color:var(--accent2);">
+    <div class="exercise-header">
+      <div class="exercise-name" style="color:var(--accent2);">Fitness Bike</div>
+      <div class="exercise-meta">25 min</div>
+    </div>
+    <div class="exercise-note">After strength training. Heart rate 120-130 bpm.</div>
+    <div style="margin-top:12px;"><button class="btn btn-primary btn-sm" onclick="switchTab('bike',document.querySelectorAll('.nav-btn')[2])">Go to Bike Timer</button></div>
+  </div>`;
+
+  html += '</div>';
+  detail.innerHTML = html;
+}
+
+function renderCondition() {
+  const items = [
+    { key: 'energy', label: 'Energy Level' },
+    { key: 'sleep', label: 'Sleep Quality' },
+    { key: 'motivation', label: 'Motivation' },
+    { key: 'soreness', label: 'Muscle Soreness' },
+  ];
+  let html = '';
+  items.forEach(item => {
+    html += `<div class="condition-item">
+      <span class="condition-label">${item.label}</span>
+      <div class="condition-stars" data-cond="${item.key}" data-value="0">
+        ${[1,2,3,4,5].map(n => `<button class="star-btn" onclick="setCondition('${item.key}',${n},this)">&#9733;</button>`).join('')}
+      </div>
+    </div>`;
+  });
+  document.getElementById('conditionGrid').innerHTML = html;
+}
+
+function setCondition(key, val, el) {
+  const container = el.closest('.condition-stars');
+  container.dataset.value = val;
+  container.querySelectorAll('.star-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i < val);
+  });
+}
+
+function renderWorkoutHistory() {
+  const data = load(KEYS.workout).slice(-10).reverse();
+  if (!data.length) {
+    document.getElementById('workoutHistory').innerHTML = '<div class="empty-state">No workout records yet.</div>';
+    return;
+  }
+  let html = '<table class="history-table"><thead><tr><th>Date</th><th>Menu</th><th>Condition</th></tr></thead><tbody>';
+  data.forEach(d => {
+    const sched = d.dayIdx >= 0 && d.dayIdx < 5 ? SCHEDULE[d.dayIdx] : null;
+    const cond = d.conditions || {};
+    const avgCond = Object.values(cond).filter(v => v > 0);
+    const avgVal = avgCond.length ? (avgCond.reduce((a, b) => a + b, 0) / avgCond.length).toFixed(1) : '-';
+    html += `<tr>
+      <td>${d.date}</td>
+      <td style="color:${sched ? sched.color : 'var(--text2)'}">${sched ? sched.labelJa : 'N/A'}</td>
+      <td>${avgVal}/5</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('workoutHistory').innerHTML = html;
+}
+
+function renderBike() {
+  const data = load(KEYS.bike);
+  const now = new Date();
+  const total = data.length;
+  const totalCal = data.reduce((s, b) => s + b.calories, 0);
+  const totalDist = data.reduce((s, b) => s + b.distance, 0);
+  const totalDur = data.reduce((s, b) => s + b.duration, 0);
+  const week = data.filter(b => (now - new Date(b.date)) / 86400000 <= 7);
+  const weekCal = week.reduce((s, b) => s + b.calories, 0);
+
+  document.getElementById('bikeOverview').innerHTML = `
+    <div class="bike-stat"><div class="stat-label">Sessions</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent)">${total}</div></div>
+    <div class="bike-stat"><div class="stat-label">Total Cal</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent4)">${totalCal}</div></div>
+    <div class="bike-stat"><div class="stat-label">Distance</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent2)">${totalDist.toFixed(1)} km</div></div>
+    <div class="bike-stat"><div class="stat-label">Time</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent3)">${Math.round(totalDur/60)} min</div></div>`;
+
+  document.getElementById('avgBikeCal').textContent = total ? Math.round(totalCal / total) : '--';
+  document.getElementById('weekBikeCal').textContent = weekCal;
+
+  // Table
+  const tbody = document.querySelector('#bikeTable tbody');
+  tbody.innerHTML = data.slice().reverse().map((b, ri) => {
+    const idx = data.length - 1 - ri;
+    return `<tr>
+      <td>${new Date(b.date).toLocaleDateString('ja-JP')}</td>
+      <td>${fmtTime(b.duration)}</td>
+      <td>${b.distance.toFixed(1)} km</td>
+      <td>${b.intensity}</td>
+      <td>${b.calories} kcal</td>
+      <td><button class="delete-btn" onclick="deleteBike(${idx})">x</button></td>
+    </tr>`;
+  }).join('');
+
+  // Chart
+  destroyChart('bikeH');
+  const ctx = document.getElementById('bikeChart');
+  if (ctx && data.length) {
+    const r = data.slice(-30);
+    charts.bikeH = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: r.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+        datasets: [
+          { label: 'Calories', data: r.map(d=>d.calories), backgroundColor: 'rgba(253,203,110,0.7)', borderRadius: 6, yAxisID: 'y' },
+          { label: 'Duration (min)', data: r.map(d=>Math.round(d.duration/60)), type: 'line', borderColor: '#00cec9', tension: 0.3, pointRadius: 3, yAxisID: 'y1' }
+        ]
+      },
+      options: { ...CHART_OPTS, scales: { ...CHART_OPTS.scales, y: { ...CHART_OPTS.scales.y, position: 'left' }, y1: { ...CHART_OPTS.scales.y, position: 'right', grid: { drawOnChartArea: false } } } }
+    });
+  }
+
+  // Reset timer display
+  const s = getSettings();
+  if (!bikeRunning && bikeSeconds === 0) {
+    document.getElementById('bikeTimerDisplay').textContent = fmtTime(s.bikeDuration * 60);
+  }
+}
+
+function renderWeightTab() {
+  const data = load(KEYS.weight);
+  const last = data.length ? data[data.length - 1] : null;
+  const first = data.length ? data[0] : null;
+  const totalW = last && first ? (last.weight - first.weight).toFixed(1) : '--';
+  const totalBf = last && first ? (last.bf - first.bf).toFixed(1) : '--';
+  const lean = last ? (last.weight * (100 - last.bf) / 100).toFixed(1) : '--';
+
+  document.getElementById('weightStats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Weight Change</div><div class="stat-value" style="font-size:1.8rem;color:${parseFloat(totalW)<=0?'var(--success)':'var(--danger)'}">${totalW > 0?'+':''}${totalW} kg</div></div>
+    <div class="stat-card"><div class="stat-label">BF Change</div><div class="stat-value" style="font-size:1.8rem;color:${parseFloat(totalBf)<=0?'var(--success)':'var(--danger)'}">${totalBf > 0?'+':''}${totalBf} %</div></div>
+    <div class="stat-card"><div class="stat-label">Lean Mass</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent2)">${lean} kg</div></div>`;
+
+  // Calorie balance
+  if (data.length >= 2) {
+    const days = Math.max(1, (new Date(last.date) - new Date(first.date)) / 86400000);
+    const daily = ((last.weight - first.weight) * 7700 / days).toFixed(0);
+    document.getElementById('calBalance').innerHTML = `<div style="text-align:center;">
+      <div style="font-size:2.5rem;font-weight:800;color:${daily<0?'var(--success)':'var(--danger)'}">${daily} kcal/day</div>
+      <div style="color:var(--text2);margin-top:8px;">Over ${Math.round(days)} days</div>
+      <div style="color:var(--text2);font-size:0.85rem;margin-top:4px;">${daily<0?'Deficit':'Surplus'}</div>
+      <div style="color:var(--text2);font-size:0.8rem;margin-top:8px;">Target: -160 kcal/day for 8kg/year</div>
+    </div>`;
+  } else {
+    document.getElementById('calBalance').innerHTML = '<div class="empty-state">Need 2+ records</div>';
+  }
+
+  // Chart
+  destroyChart('wt');
+  const ctx = document.getElementById('weightChart');
+  if (ctx && data.length >= 2) {
+    const ma = movingAvg(data.map(d => d.weight), 5);
+    charts.wt = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+        datasets: [
+          { label: 'Weight', data: data.map(d=>d.weight), borderColor: '#6c5ce7', backgroundColor: 'rgba(108,92,231,0.1)', fill: true, tension: 0.2, pointRadius: 2 },
+          { label: '5-day MA', data: ma, borderColor: '#e17055', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
+        ]
+      }, options: CHART_OPTS
+    });
+  }
+
+  // Table
+  const tbody = document.querySelector('#weightTable tbody');
+  tbody.innerHTML = data.slice().reverse().map((d, ri) => {
+    const idx = data.length - 1 - ri;
+    return `<tr>
+      <td>${new Date(d.date).toLocaleDateString('ja-JP')}</td>
+      <td>${d.weight.toFixed(1)}</td>
+      <td>${d.bf.toFixed(1)}%</td>
+      <td>${(d.weight*(100-d.bf)/100).toFixed(1)}</td>
+      <td>${(d.weight*d.bf/100).toFixed(1)}</td>
+      <td><button class="delete-btn" onclick="deleteWeight(${idx})">x</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSettings() {
+  const s = getSettings();
+  document.getElementById('targetWeight').value = s.targetWeight;
+  document.getElementById('bikeDuration').value = s.bikeDuration;
+
+  let html = '';
+  SCHEDULE.forEach((sched, di) => {
+    if (sched.bikeOnly) return;
+    html += `<div style="margin-bottom:16px;">
+      <div style="font-weight:700;color:${sched.color};margin-bottom:8px;">${sched.dayJa} - ${sched.labelJa}</div>`;
+    sched.exercises.forEach((ex, ei) => {
+      const rest = getExerciseRest(di, ei, ex.rest);
+      html += `<div class="setting-row">
+        <label>${ex.nameJa}</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="number" value="${rest}" min="15" max="300" step="15"
+            onchange="setRestTime(${di},${ei},this.value)">
+          <span style="color:var(--text2);font-size:0.8rem;">sec</span>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  document.getElementById('settingsCard').innerHTML = html;
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab, btnEl) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (btnEl) btnEl.classList.add('active');
+
+  if (tab === 'dashboard') renderDashboard();
+  else if (tab === 'workout') renderWorkout();
+  else if (tab === 'bike') renderBike();
+  else if (tab === 'weight') renderWeightTab();
+  else if (tab === 'settings') renderSettings();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderDashboard();
+</script>
+</body>
+</html>
