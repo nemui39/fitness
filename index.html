@@ -691,6 +691,30 @@ function deleteWeight(i) {
   const d = load(KEYS.weight); d.splice(i, 1); save(KEYS.weight, d);
   renderWeightTab(); renderDashboard();
 }
+function editWeight(idx) {
+  const data = load(KEYS.weight);
+  const d = data[idx];
+  const row = document.getElementById(`wrow_${idx}`);
+  row.innerHTML = `
+    <td>${new Date(d.date).toLocaleDateString('ja-JP')}</td>
+    <td><input type="number" step="0.1" value="${d.weight}" id="ew_${idx}" class="set-input" style="width:80px"></td>
+    <td><input type="number" step="0.1" value="${d.bf}" id="eb_${idx}" class="set-input" style="width:80px"></td>
+    <td>-</td><td>-</td>
+    <td style="display:flex;gap:4px;">
+      <button class="btn btn-success btn-sm" onclick="saveEditWeight(${idx})">Save</button>
+      <button class="btn btn-secondary btn-sm" onclick="renderWeightTab()">Cancel</button>
+    </td>`;
+}
+function saveEditWeight(idx) {
+  const w = parseFloat(document.getElementById(`ew_${idx}`).value);
+  const b = parseFloat(document.getElementById(`eb_${idx}`).value);
+  if (!w || !b) { alert('Both fields required.'); return; }
+  const data = load(KEYS.weight);
+  data[idx].weight = w;
+  data[idx].bf = b;
+  save(KEYS.weight, data);
+  renderWeightTab(); renderDashboard();
+}
 
 // ============================================================
 // WORKOUT LOG
@@ -1098,13 +1122,16 @@ function renderWeightTab() {
   const tbody = document.querySelector('#weightTable tbody');
   tbody.innerHTML = data.slice().reverse().map((d, ri) => {
     const idx = data.length - 1 - ri;
-    return `<tr>
+    return `<tr id="wrow_${idx}">
       <td>${new Date(d.date).toLocaleDateString('ja-JP')}</td>
       <td>${d.weight.toFixed(1)}</td>
       <td>${d.bf.toFixed(1)}%</td>
       <td>${(d.weight*(100-d.bf)/100).toFixed(1)}</td>
       <td>${(d.weight*d.bf/100).toFixed(1)}</td>
-      <td><button class="delete-btn" onclick="deleteWeight(${idx})">x</button></td>
+      <td style="display:flex;gap:4px;">
+        <button class="delete-btn" onclick="editWeight(${idx})" title="Edit" style="color:var(--accent)">&#9998;</button>
+        <button class="delete-btn" onclick="deleteWeight(${idx})" title="Delete">x</button>
+      </td>
     </tr>`;
   }).join('');
 }
