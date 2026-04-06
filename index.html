@@ -326,6 +326,10 @@
       <div class="chart-container"><canvas id="dashBikeChart"></canvas></div>
     </div>
   </div>
+  <div class="card">
+    <div class="card-title">Workout History</div>
+    <div style="max-height:400px;overflow-y:auto;" id="workoutHistory"></div>
+  </div>
 </div>
 
 <!-- ===== WORKOUT ===== -->
@@ -339,9 +343,6 @@
       <button class="btn btn-success" onclick="saveWorkoutLog()" style="width:100%">Save Today's Record</button>
     </div>
   </div>
-  <div class="card" style="margin-top:20px;">
-    <div class="card-title">Workout History</div>
-    <div style="max-height:400px;overflow-y:auto;" id="workoutHistory"></div>
   </div>
 </div>
 
@@ -390,6 +391,16 @@
           <div class="stat-value" style="font-size:1.5rem;color:var(--accent3)" id="weekBikeCal">--</div>
         </div>
       </div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Daily Summary</div>
+      <div class="chart-container"><canvas id="bikeDailyChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Monthly Summary</div>
+      <div class="chart-container"><canvas id="bikeMonthlyChart"></canvas></div>
     </div>
   </div>
   <div class="card">
@@ -675,6 +686,28 @@ function deleteBike(i) {
   const d = load(KEYS.bike); d.splice(i, 1); save(KEYS.bike, d);
   renderBike(); renderDashboard();
 }
+function editBike(idx) {
+  const data = load(KEYS.bike);
+  const b = data[idx];
+  const row = document.getElementById(`brow_${idx}`);
+  row.innerHTML = `
+    <td>${new Date(b.date).toLocaleDateString('ja-JP')}</td>
+    <td>${fmtTime(b.duration)}</td>
+    <td><input type="number" step="0.1" value="${b.distance}" id="ebd_${idx}" class="set-input" style="width:80px"> km</td>
+    <td>${b.intensity}</td>
+    <td>${b.calories} kcal</td>
+    <td style="display:flex;gap:4px;">
+      <button class="btn btn-success btn-sm" onclick="saveEditBike(${idx})">Save</button>
+      <button class="btn btn-secondary btn-sm" onclick="renderBike()">Cancel</button>
+    </td>`;
+}
+function saveEditBike(idx) {
+  const dist = parseFloat(document.getElementById(`ebd_${idx}`).value) || 0;
+  const data = load(KEYS.bike);
+  data[idx].distance = dist;
+  save(KEYS.bike, data);
+  renderBike(); renderDashboard();
+}
 
 // ============================================================
 // WEIGHT
@@ -917,6 +950,8 @@ function renderDashboard() {
       }, options: CHART_OPTS
     });
   }
+
+  renderWorkoutHistory();
 }
 
 function renderWorkout() {
@@ -934,7 +969,6 @@ function renderWorkout() {
 
   renderWorkoutDay(dayIdx >= 0 ? dayIdx : 0);
   renderCondition();
-  renderWorkoutHistory();
 }
 
 function renderWorkoutDay(dayIdx) {
@@ -1142,13 +1176,16 @@ function renderBike() {
   const tbody = document.querySelector('#bikeTable tbody');
   tbody.innerHTML = data.slice().reverse().map((b, ri) => {
     const idx = data.length - 1 - ri;
-    return `<tr>
+    return `<tr id="brow_${idx}">
       <td>${new Date(b.date).toLocaleDateString('ja-JP')}</td>
       <td>${fmtTime(b.duration)}</td>
       <td>${b.distance.toFixed(1)} km</td>
       <td>${b.intensity}</td>
       <td>${b.calories} kcal</td>
-      <td><button class="delete-btn" onclick="deleteBike(${idx})">x</button></td>
+      <td style="display:flex;gap:4px;">
+        <button class="delete-btn" onclick="editBike(${idx})" title="Edit" style="color:var(--accent)">&#9998;</button>
+        <button class="delete-btn" onclick="deleteBike(${idx})" title="Delete">x</button>
+      </td>
     </tr>`;
   }).join('');
 
@@ -1167,6 +1204,59 @@ function renderBike() {
         ]
       },
       options: { ...CHART_OPTS, scales: { ...CHART_OPTS.scales, y: { ...CHART_OPTS.scales.y, position: 'left' }, y1: { ...CHART_OPTS.scales.y, position: 'right', grid: { drawOnChartArea: false } } } }
+    });
+  }
+
+  // Daily aggregation chart
+  destroyChart('bikeDaily');
+  const dailyCtx = document.getElementById('bikeDailyChart');
+  if (dailyCtx && data.length) {
+    const dailyMap = {};
+    data.forEach(b => {
+      const day = new Date(b.date).toISOString().slice(0, 10);
+      if (!dailyMap[day]) dailyMap[day] = { cal: 0, dur: 0, dist: 0 };
+      dailyMap[day].cal += b.calories;
+      dailyMap[day].dur += b.duration;
+      dailyMap[day].dist += b.distance;
+    });
+    const dailyKeys = Object.keys(dailyMap).sort().slice(-30);
+    charts.bikeDaily = new Chart(dailyCtx, {
+      type: 'bar',
+      data: {
+        labels: dailyKeys.map(d => { const dt = new Date(d); return dt.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }); }),
+        datasets: [
+          { label: 'Calories', data: dailyKeys.map(d => dailyMap[d].cal), backgroundColor: 'rgba(253,203,110,0.7)', borderRadius: 6, yAxisID: 'y' },
+          { label: 'Duration (min)', data: dailyKeys.map(d => Math.round(dailyMap[d].dur / 60)), type: 'line', borderColor: '#00cec9', tension: 0.3, pointRadius: 3, yAxisID: 'y1' },
+        ]
+      },
+      options: { ...CHART_OPTS, scales: { ...CHART_OPTS.scales, y: { ...CHART_OPTS.scales.y, position: 'left', title: { display: true, text: 'kcal', color: '#8888a0' } }, y1: { ...CHART_OPTS.scales.y, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'min', color: '#8888a0' } } } }
+    });
+  }
+
+  // Monthly aggregation chart
+  destroyChart('bikeMonthly');
+  const monthlyCtx = document.getElementById('bikeMonthlyChart');
+  if (monthlyCtx && data.length) {
+    const monthlyMap = {};
+    data.forEach(b => {
+      const ym = new Date(b.date).toISOString().slice(0, 7);
+      if (!monthlyMap[ym]) monthlyMap[ym] = { cal: 0, dur: 0, dist: 0, sessions: 0 };
+      monthlyMap[ym].cal += b.calories;
+      monthlyMap[ym].dur += b.duration;
+      monthlyMap[ym].dist += b.distance;
+      monthlyMap[ym].sessions++;
+    });
+    const monthKeys = Object.keys(monthlyMap).sort().slice(-12);
+    charts.bikeMonthly = new Chart(monthlyCtx, {
+      type: 'bar',
+      data: {
+        labels: monthKeys.map(ym => { const [y, m] = ym.split('-'); return `${parseInt(m)}月`; }),
+        datasets: [
+          { label: 'Calories', data: monthKeys.map(m => monthlyMap[m].cal), backgroundColor: 'rgba(108,92,231,0.7)', borderRadius: 6, yAxisID: 'y' },
+          { label: 'Sessions', data: monthKeys.map(m => monthlyMap[m].sessions), type: 'line', borderColor: '#fd79a8', tension: 0.3, pointRadius: 4, yAxisID: 'y1' },
+        ]
+      },
+      options: { ...CHART_OPTS, scales: { ...CHART_OPTS.scales, y: { ...CHART_OPTS.scales.y, position: 'left', title: { display: true, text: 'kcal', color: '#8888a0' } }, y1: { ...CHART_OPTS.scales.y, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'sessions', color: '#8888a0' } } } }
     });
   }
 
