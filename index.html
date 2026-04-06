@@ -464,9 +464,10 @@ const SCHEDULE = [
     labelJa: '肩・背中',
     color: '#0984e3',
     exercises: [
-      { name: 'Chin-up (Parallel/Normal)', nameJa: '懸垂（パラレル／通常）', sets: 3, reps: 'Max', rest: 90, note: 'No kipping. Pull with back.' },
-      { name: 'Tube Lean-Away Side Raise', nameJa: 'チューブ斜めサイドレイズ', sets: 3, reps: '12-15 each', rest: 60, note: 'Lean body sideways holding a pole. Target lateral deltoid.' },
-      { name: 'Tube Face Pull', nameJa: 'チューブ・フェイスプル', sets: 3, reps: '15', rest: 60, note: 'Pull to face height. Squeeze shoulder blades.' },
+      { name: 'Parallel Chin-up', nameJa: 'パラレルチンニング', sets: 3, reps: 'Max', rest: 90, note: 'Parallel grip. Elbows close to body. Focus on lats & chest.' },
+      { name: 'Normal Chin-up', nameJa: '通常懸垂', sets: 3, reps: 'Max', rest: 90, note: 'Wider grip. No kipping. Pull with back, control the descent.' },
+      { name: 'Tube Lean-Away Side Raise', nameJa: 'チューブ斜めサイドレイズ', sets: 3, reps: '12-15 each', rest: 60, bilateral: true, tube: true, note: 'Lean body sideways holding a pole. Target lateral deltoid.' },
+      { name: 'Tube Face Pull', nameJa: 'チューブ・フェイスプル', sets: 3, reps: '15', rest: 60, tube: true, note: 'Pull to face height. Squeeze shoulder blades.' },
     ]
   },
   {
@@ -474,7 +475,7 @@ const SCHEDULE = [
     labelJa: '下半身＋腹筋',
     color: '#00b894',
     exercises: [
-      { name: 'Bulgarian Squat (Wide)', nameJa: 'ブルガリアンスクワット（ワイド）', sets: 3, reps: '15-20 each', rest: 90, note: 'Wide stance, toes 45 degrees out. Focus on outer glutes. 30s between legs.' },
+      { name: 'Bulgarian Squat (Wide)', nameJa: 'ブルガリアンスクワット（ワイド）', sets: 3, reps: '15-20 each', rest: 90, bilateral: true, note: 'Wide stance, toes 45 degrees out. Focus on outer glutes. 30s between legs.' },
       { name: 'Ab Roller (Kneeling)', nameJa: 'アブローラー（膝コロ）', sets: 3, reps: '10', rest: 60, note: 'Keep looking at belly button. Never arch lower back.' },
     ]
   },
@@ -491,16 +492,17 @@ const SCHEDULE = [
     color: '#6c5ce7',
     exercises: [
       { name: 'Push-up (Slow Tempo)', nameJa: 'プッシュアップ（スロー）', sets: 3, reps: '15-20', rest: 90, note: '2s down, 1s hold, 1s up. Focus on chest contraction.' },
-      { name: 'Chin-up (Form Focus)', nameJa: '懸垂（フォーム重視）', sets: 3, reps: 'Max', rest: 90, note: 'Stop the set when form breaks down.' },
+      { name: 'Parallel Chin-up (Form)', nameJa: 'パラレルチンニング（フォーム重視）', sets: 3, reps: 'Max', rest: 90, note: 'Parallel grip. Stop the set when form breaks down.' },
+      { name: 'Normal Chin-up (Form)', nameJa: '通常懸垂（フォーム重視）', sets: 3, reps: 'Max', rest: 90, note: 'Wider grip. Stop the set when form breaks down.' },
     ]
   },
   {
-    day: 'Fri', dayJa: '金', label: 'Chest & Arms',
-    labelJa: '胸・腕',
+    day: 'Fri', dayJa: '金', label: 'Chest & Legs',
+    labelJa: '胸・脚',
     color: '#e17055',
     exercises: [
       { name: 'Dips', nameJa: 'ディップス', sets: 3, reps: '5-6', rest: 90, note: 'Lean forward slightly. Go deep to 90 degrees.' },
-      { name: 'Close-Grip Push-up', nameJa: 'クローズプッシュアップ', sets: 3, reps: '12-15', rest: 90, note: 'Narrow hand placement. Target triceps.' },
+      { name: 'Bulgarian Squat (Wide)', nameJa: 'ブルガリアンスクワット（ワイド）', sets: 3, reps: '15-20 each', rest: 90, bilateral: true, note: 'Wide stance, toes 45 degrees out. Focus on outer glutes. 30s between legs.' },
     ]
   },
 ];
@@ -727,6 +729,16 @@ function getScheduleIndex() {
   return -1;
 }
 
+function updateTubeTotal(dayIdx, ei) {
+  let total = 0;
+  [9, 18, 27].forEach(kg => {
+    const cb = document.getElementById(`tube_${dayIdx}_${ei}_${kg}`);
+    if (cb && cb.checked) total += kg;
+  });
+  const el = document.getElementById(`tubeTotal_${dayIdx}_${ei}`);
+  if (el) el.textContent = `= ${total}kg`;
+}
+
 function saveWorkoutLog() {
   const dayIdx = getScheduleIndex();
   const conditions = {};
@@ -740,11 +752,29 @@ function saveWorkoutLog() {
       const sets = [];
       for (let si = 0; si < ex.sets; si++) {
         const key = `${dayIdx}_${ei}_${si}`;
-        const input = document.getElementById(`reps_${key}`);
-        const check = document.getElementById(`check_${key}`);
-        sets.push({ reps: input ? input.value : '', done: check ? check.checked : false });
+        if (ex.bilateral) {
+          const inputR = document.getElementById(`reps_${key}_R`);
+          const checkR = document.getElementById(`check_${key}_R`);
+          const inputL = document.getElementById(`reps_${key}_L`);
+          const checkL = document.getElementById(`check_${key}_L`);
+          sets.push({
+            repsR: inputR ? inputR.value : '', doneR: checkR ? checkR.checked : false,
+            repsL: inputL ? inputL.value : '', doneL: checkL ? checkL.checked : false,
+          });
+        } else {
+          const input = document.getElementById(`reps_${key}`);
+          const check = document.getElementById(`check_${key}`);
+          sets.push({ reps: input ? input.value : '', done: check ? check.checked : false });
+        }
       }
-      exercises.push({ name: ex.name, sets });
+      const exRecord = { name: ex.name, sets };
+      if (ex.tube) {
+        exRecord.tubes = [9, 18, 27].filter(kg => {
+          const cb = document.getElementById(`tube_${dayIdx}_${ei}_${kg}`);
+          return cb && cb.checked;
+        });
+      }
+      exercises.push(exRecord);
     });
   }
 
@@ -938,20 +968,61 @@ function renderWorkoutDay(dayIdx) {
         <div class="exercise-meta">${ex.sets} x ${ex.reps}</div>
       </div>
       <div class="exercise-note">${ex.note}</div>
+      ${ex.tube ? `<div style="margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:0.8rem;color:var(--text2);font-weight:600;">Tube:</span>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+          <input type="checkbox" class="set-check" id="tube_${dayIdx}_${ei}_9" style="width:18px;height:18px;">
+          <span style="font-size:0.85rem;color:var(--accent4);">9kg</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+          <input type="checkbox" class="set-check" id="tube_${dayIdx}_${ei}_18" style="width:18px;height:18px;">
+          <span style="font-size:0.85rem;color:var(--accent3);">18kg</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+          <input type="checkbox" class="set-check" id="tube_${dayIdx}_${ei}_27" style="width:18px;height:18px;">
+          <span style="font-size:0.85rem;color:var(--danger);">27kg</span>
+        </label>
+        <span style="font-size:0.8rem;color:var(--text2);margin-left:4px;" id="tubeTotal_${dayIdx}_${ei}">= 0kg</span>
+      </div>` : ''}
       <div style="margin-top:12px;">`;
 
     for (let si = 0; si < ex.sets; si++) {
       const key = `${dayIdx}_${ei}_${si}`;
-      html += `<div class="set-row">
-        <span class="set-label">Set ${si + 1}</span>
-        <input type="text" class="set-input" id="reps_${key}" placeholder="${ex.reps}">
-        <input type="checkbox" class="set-check" id="check_${key}">
-        <button class="btn btn-secondary btn-sm" onclick="startRest(${rest},'${ex.nameJa} - Set ${si+1} Rest')" style="padding:4px 12px;font-size:0.75rem;">REST ${rest}s</button>
-      </div>`;
+      if (ex.bilateral) {
+        html += `<div class="set-row" style="flex-wrap:wrap;gap:8px;">
+          <span class="set-label">Set ${si + 1}</span>
+          <span style="font-size:0.75rem;color:var(--accent2);width:16px;">R</span>
+          <input type="text" class="set-input" id="reps_${key}_R" placeholder="${ex.reps}" style="width:60px;">
+          <input type="checkbox" class="set-check" id="check_${key}_R">
+          <button class="btn btn-secondary btn-sm" onclick="startRest(30,'${ex.nameJa} - Set ${si+1} R→L')" style="padding:4px 10px;font-size:0.7rem;">30s</button>
+          <span style="font-size:0.75rem;color:var(--accent3);width:16px;">L</span>
+          <input type="text" class="set-input" id="reps_${key}_L" placeholder="${ex.reps}" style="width:60px;">
+          <input type="checkbox" class="set-check" id="check_${key}_L">
+          <button class="btn btn-secondary btn-sm" onclick="startRest(${rest},'${ex.nameJa} - Set ${si+1} Rest')" style="padding:4px 10px;font-size:0.7rem;">REST ${rest}s</button>
+        </div>`;
+      } else {
+        html += `<div class="set-row">
+          <span class="set-label">Set ${si + 1}</span>
+          <input type="text" class="set-input" id="reps_${key}" placeholder="${ex.reps}">
+          <input type="checkbox" class="set-check" id="check_${key}">
+          <button class="btn btn-secondary btn-sm" onclick="startRest(${rest},'${ex.nameJa} - Set ${si+1} Rest')" style="padding:4px 12px;font-size:0.75rem;">REST ${rest}s</button>
+        </div>`;
+      }
     }
 
     html += `</div></div>`;
   });
+
+  // Tube total auto-update
+  setTimeout(() => {
+    s.exercises.forEach((ex, ei) => {
+      if (!ex.tube) return;
+      [9, 18, 27].forEach(kg => {
+        const cb = document.getElementById(`tube_${dayIdx}_${ei}_${kg}`);
+        if (cb) cb.addEventListener('change', () => updateTubeTotal(dayIdx, ei));
+      });
+    });
+  }, 0);
 
   // Bike reminder
   html += `<div class="workout-exercise" style="border-color:var(--accent2);">
