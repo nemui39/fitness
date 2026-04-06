@@ -1024,16 +1024,6 @@ function renderWorkoutDay(dayIdx) {
     });
   }, 0);
 
-  // Bike reminder
-  html += `<div class="workout-exercise" style="border-color:var(--accent2);">
-    <div class="exercise-header">
-      <div class="exercise-name" style="color:var(--accent2);">Fitness Bike</div>
-      <div class="exercise-meta">25 min</div>
-    </div>
-    <div class="exercise-note">After strength training. Heart rate 120-130 bpm.</div>
-    <div style="margin-top:12px;"><button class="btn btn-primary btn-sm" onclick="switchTab('bike',document.querySelectorAll('.nav-btn')[2])">Go to Bike Timer</button></div>
-  </div>`;
-
   html += '</div>';
   detail.innerHTML = html;
 }
@@ -1066,24 +1056,66 @@ function setCondition(key, val, el) {
 }
 
 function renderWorkoutHistory() {
-  const data = load(KEYS.workout).slice(-10).reverse();
+  const data = load(KEYS.workout).slice(-20).reverse();
   if (!data.length) {
     document.getElementById('workoutHistory').innerHTML = '<div class="empty-state">No workout records yet.</div>';
     return;
   }
-  let html = '<table class="history-table"><thead><tr><th>Date</th><th>Menu</th><th>Condition</th></tr></thead><tbody>';
-  data.forEach(d => {
+  let html = '';
+  data.forEach((d, i) => {
     const sched = d.dayIdx >= 0 && d.dayIdx < 5 ? SCHEDULE[d.dayIdx] : null;
     const cond = d.conditions || {};
     const avgCond = Object.values(cond).filter(v => v > 0);
     const avgVal = avgCond.length ? (avgCond.reduce((a, b) => a + b, 0) / avgCond.length).toFixed(1) : '-';
-    html += `<tr>
-      <td>${d.date}</td>
-      <td style="color:${sched ? sched.color : 'var(--text2)'}">${sched ? sched.labelJa : 'N/A'}</td>
-      <td>${avgVal}/5</td>
-    </tr>`;
+    const condLabels = { energy: 'Energy', sleep: 'Sleep', motivation: 'Motivation', soreness: 'Soreness' };
+
+    html += `<div style="border-bottom:1px solid var(--border);padding:12px 0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="document.getElementById('wh_detail_${i}').style.display=document.getElementById('wh_detail_${i}').style.display==='none'?'block':'none'">
+        <div style="display:flex;gap:16px;align-items:center;">
+          <span style="font-weight:700;">${d.date}</span>
+          <span style="color:${sched ? sched.color : 'var(--text2)'};font-weight:600;">${sched ? sched.labelJa : 'N/A'}</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <span style="font-size:0.85rem;color:var(--text2);">Cond: ${avgVal}/5</span>
+          <span style="color:var(--text2);font-size:0.8rem;">▼</span>
+        </div>
+      </div>
+      <div id="wh_detail_${i}" style="display:none;margin-top:12px;padding-left:8px;">`;
+
+    // Condition detail
+    if (Object.keys(cond).length) {
+      html += '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">';
+      for (const [k, v] of Object.entries(cond)) {
+        if (v > 0) {
+          const stars = '★'.repeat(v) + '☆'.repeat(5 - v);
+          html += `<span style="font-size:0.8rem;color:var(--text2);">${condLabels[k] || k}: <span style="color:var(--accent4);">${stars}</span></span>`;
+        }
+      }
+      html += '</div>';
+    }
+
+    // Exercise details
+    if (d.exercises && d.exercises.length) {
+      d.exercises.forEach(ex => {
+        html += `<div style="background:var(--surface2);border-radius:8px;padding:10px 14px;margin-bottom:8px;">
+          <div style="font-weight:600;font-size:0.9rem;margin-bottom:6px;">${ex.name}`;
+        if (ex.tubes && ex.tubes.length) {
+          html += ` <span style="font-size:0.75rem;color:var(--accent4);">[${ex.tubes.join('+')}kg = ${ex.tubes.reduce((a,b)=>a+b,0)}kg]</span>`;
+        }
+        html += '</div><div style="display:flex;gap:12px;flex-wrap:wrap;">';
+        ex.sets.forEach((s, si) => {
+          if (s.repsR !== undefined) {
+            html += `<span style="font-size:0.8rem;color:var(--text2);">Set${si+1}: <span style="color:var(--accent2);">R:${s.repsR || '-'}</span> <span style="color:var(--accent3);">L:${s.repsL || '-'}</span></span>`;
+          } else {
+            html += `<span style="font-size:0.8rem;color:var(--text2);">Set${si+1}: <span style="color:var(--text);">${s.reps || '-'}</span></span>`;
+          }
+        });
+        html += '</div></div>';
+      });
+    }
+
+    html += '</div></div>';
   });
-  html += '</tbody></table>';
   document.getElementById('workoutHistory').innerHTML = html;
 }
 
