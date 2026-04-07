@@ -437,6 +437,20 @@
     <div class="chart-container" style="height:350px"><canvas id="weightChart"></canvas></div>
   </div>
   <div class="card">
+    <div class="card-title">Body Fat Trend</div>
+    <div class="chart-container" style="height:350px"><canvas id="bfChart"></canvas></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Lean Mass (除脂肪体重)</div>
+      <div class="chart-container" style="height:300px"><canvas id="leanChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Fat Mass (脂肪量)</div>
+      <div class="chart-container" style="height:300px"><canvas id="fatChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-title">History</div>
     <div style="max-height:300px;overflow-y:auto;">
       <table class="history-table" id="weightTable"><thead>
@@ -718,8 +732,8 @@ function saveWeight() {
   if (!w || !b) { alert('Both fields required.'); return; }
   const d = load(KEYS.weight); d.push({ date: new Date().toISOString(), weight: w, bf: b });
   save(KEYS.weight, d);
-  document.getElementById('weightInput').value = '';
-  document.getElementById('bfInput').value = '';
+  document.getElementById('weightInput').value = w;
+  document.getElementById('bfInput').value = b;
   renderWeightTab(); renderDashboard();
 }
 function deleteWeight(i) {
@@ -1294,6 +1308,12 @@ function renderWeightTab() {
     document.getElementById('calBalance').innerHTML = '<div class="empty-state">Need 2+ records</div>';
   }
 
+  // Pre-fill inputs with last record
+  if (last) {
+    document.getElementById('weightInput').value = last.weight;
+    document.getElementById('bfInput').value = last.bf;
+  }
+
   // Chart
   destroyChart('wt');
   const ctx = document.getElementById('weightChart');
@@ -1306,6 +1326,59 @@ function renderWeightTab() {
         datasets: [
           { label: 'Weight', data: data.map(d=>d.weight), borderColor: '#6c5ce7', backgroundColor: 'rgba(108,92,231,0.1)', fill: true, tension: 0.2, pointRadius: 2 },
           { label: '5-day MA', data: ma, borderColor: '#e17055', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
+        ]
+      }, options: CHART_OPTS
+    });
+  }
+
+  // BF Chart
+  destroyChart('bf');
+  const bfCtx = document.getElementById('bfChart');
+  if (bfCtx && data.length >= 2) {
+    const bfMa = movingAvg(data.map(d => d.bf), 5);
+    charts.bf = new Chart(bfCtx, {
+      type: 'line',
+      data: {
+        labels: data.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+        datasets: [
+          { label: 'Body Fat %', data: data.map(d=>d.bf), borderColor: '#fd79a8', backgroundColor: 'rgba(253,121,168,0.1)', fill: true, tension: 0.2, pointRadius: 2 },
+          { label: '5-day MA', data: bfMa, borderColor: '#fdcb6e', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
+        ]
+      }, options: CHART_OPTS
+    });
+  }
+
+  // Lean Mass Chart
+  destroyChart('lean');
+  const leanCtx = document.getElementById('leanChart');
+  if (leanCtx && data.length >= 2) {
+    const leanData = data.map(d => +(d.weight * (100 - d.bf) / 100).toFixed(2));
+    const leanMa = movingAvg(leanData, 5);
+    charts.lean = new Chart(leanCtx, {
+      type: 'line',
+      data: {
+        labels: data.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+        datasets: [
+          { label: 'Lean Mass', data: leanData, borderColor: '#00b894', backgroundColor: 'rgba(0,184,148,0.1)', fill: true, tension: 0.2, pointRadius: 2 },
+          { label: '5-day MA', data: leanMa, borderColor: '#00cec9', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
+        ]
+      }, options: CHART_OPTS
+    });
+  }
+
+  // Fat Mass Chart
+  destroyChart('fat');
+  const fatCtx = document.getElementById('fatChart');
+  if (fatCtx && data.length >= 2) {
+    const fatData = data.map(d => +(d.weight * d.bf / 100).toFixed(2));
+    const fatMa = movingAvg(fatData, 5);
+    charts.fat = new Chart(fatCtx, {
+      type: 'line',
+      data: {
+        labels: data.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+        datasets: [
+          { label: 'Fat Mass', data: fatData, borderColor: '#e17055', backgroundColor: 'rgba(225,112,85,0.1)', fill: true, tension: 0.2, pointRadius: 2 },
+          { label: '5-day MA', data: fatMa, borderColor: '#fdcb6e', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
         ]
       }, options: CHART_OPTS
     });
