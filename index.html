@@ -338,9 +338,25 @@
   <div id="workoutDetail"></div>
   <div class="card" style="margin-top:20px;">
     <div class="card-title">Condition Record</div>
+    <div class="form-row" style="margin-bottom:16px;">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="workoutDate">
+      </div>
+      <div class="form-group">
+        <label>Menu</label>
+        <select id="workoutDaySelect" onchange="renderWorkoutDay(parseInt(this.value))">
+          <option value="0">Mon - Shoulders & Back</option>
+          <option value="1">Tue - Lower Body + Abs</option>
+          <option value="2">Wed - Recovery</option>
+          <option value="3">Thu - Chest & Legs</option>
+          <option value="4">Fri - Upper Body</option>
+        </select>
+      </div>
+    </div>
     <div class="condition-grid" id="conditionGrid"></div>
     <div style="margin-top:16px;">
-      <button class="btn btn-success" onclick="saveWorkoutLog()" style="width:100%">Save Today's Record</button>
+      <button class="btn btn-success" onclick="saveWorkoutLog()" style="width:100%">Save Record</button>
     </div>
   </div>
   </div>
@@ -787,7 +803,10 @@ function updateTubeTotal(dayIdx, ei) {
 }
 
 function saveWorkoutLog() {
-  const dayIdx = getScheduleIndex();
+  const dateInput = document.getElementById('workoutDate');
+  const daySelect = document.getElementById('workoutDaySelect');
+  const saveDate = dateInput ? dateInput.value : todayStr();
+  const dayIdx = daySelect ? parseInt(daySelect.value) : getScheduleIndex();
   const conditions = {};
   document.querySelectorAll('[data-cond]').forEach(el => {
     conditions[el.dataset.cond] = parseInt(el.dataset.value) || 0;
@@ -826,10 +845,15 @@ function saveWorkoutLog() {
   }
 
   const data = load(KEYS.workout);
-  const existing = data.findIndex(d => d.date === todayStr());
-  const record = { date: todayStr(), dayIdx, conditions, exercises };
-  if (existing >= 0) data[existing] = record;
-  else data.push(record);
+  const existing = data.findIndex(d => d.date === saveDate);
+  const record = { date: saveDate, dayIdx, conditions, exercises };
+  if (existing >= 0) {
+    if (!confirm(`${saveDate} has an existing record. Overwrite?`)) return;
+    data[existing] = record;
+  } else {
+    data.push(record);
+  }
+  data.sort((a, b) => a.date.localeCompare(b.date));
   save(KEYS.workout, data);
   alert('Saved!');
   renderWorkout(); renderDashboard();
@@ -976,13 +1000,26 @@ function renderWorkout() {
   for (let i = 0; i < 5; i++) {
     const s = SCHEDULE[i];
     const isActive = i === dayIdx;
-    selHtml += `<button class="btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="renderWorkoutDay(${i})" style="border-left:3px solid ${s.color}">${s.dayJa} ${s.labelJa}</button>`;
+    selHtml += `<button class="btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="selectWorkoutDay(${i})" style="border-left:3px solid ${s.color}">${s.dayJa} ${s.labelJa}</button>`;
   }
   selHtml += '</div>';
   document.getElementById('workoutDaySelector').innerHTML = selHtml;
 
-  renderWorkoutDay(dayIdx >= 0 ? dayIdx : 0);
+  const activeDayIdx = dayIdx >= 0 ? dayIdx : 0;
+  renderWorkoutDay(activeDayIdx);
   renderCondition();
+
+  // Set date and menu defaults
+  const dateInput = document.getElementById('workoutDate');
+  if (dateInput) dateInput.value = todayStr();
+  const daySelect = document.getElementById('workoutDaySelect');
+  if (daySelect) daySelect.value = activeDayIdx;
+}
+
+function selectWorkoutDay(dayIdx) {
+  const daySelect = document.getElementById('workoutDaySelect');
+  if (daySelect) daySelect.value = dayIdx;
+  renderWorkoutDay(dayIdx);
 }
 
 function renderWorkoutDay(dayIdx) {
@@ -1104,7 +1141,7 @@ function setCondition(key, val, el) {
 }
 
 function renderWorkoutHistory() {
-  const data = load(KEYS.workout).slice(-20).reverse();
+  const data = load(KEYS.workout).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20);
   if (!data.length) {
     document.getElementById('workoutHistory').innerHTML = '<div class="empty-state">No workout records yet.</div>';
     return;
