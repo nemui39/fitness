@@ -681,10 +681,18 @@ function toggleBikeTimer() {
   }
 }
 
+function getTodayBikeRemaining() {
+  const s = getSettings();
+  const target = s.bikeDuration * 60;
+  const data = load(KEYS.bike);
+  const today = todayStr();
+  const todayTotal = data.filter(b => b.date.slice(0, 10) === today).reduce((sum, b) => sum + b.duration, 0);
+  return Math.max(0, target - todayTotal);
+}
+
 function resetBikeTimer() {
   clearInterval(bikeInterval); bikeRunning = false; bikeSeconds = 0;
-  const s = getSettings();
-  document.getElementById('bikeTimerDisplay').textContent = fmtTime(s.bikeDuration * 60);
+  document.getElementById('bikeTimerDisplay').textContent = fmtTime(getTodayBikeRemaining());
   document.getElementById('bikeStartBtn').textContent = 'Start';
   document.getElementById('bikeStartBtn').className = 'btn btn-primary';
   document.getElementById('bikeResetBtn').disabled = true;
@@ -1216,7 +1224,7 @@ function renderBike() {
 
   document.getElementById('bikeOverview').innerHTML = `
     <div class="bike-stat"><div class="stat-label">Sessions</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent)">${total}</div></div>
-    <div class="bike-stat"><div class="stat-label">Total Cal</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent4)">${totalCal}</div></div>
+    <div class="bike-stat"><div class="stat-label">Total Cal</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent4)">${totalCal}</div><div style="font-size:0.85rem;color:var(--success);margin-top:4px;font-weight:700;">= ${(totalCal / 7700).toFixed(2)} kg</div></div>
     <div class="bike-stat"><div class="stat-label">Distance</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent2)">${totalDist.toFixed(1)} km</div></div>
     <div class="bike-stat"><div class="stat-label">Time</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent3)">${Math.round(totalDur/60)} min</div></div>`;
 
@@ -1312,9 +1320,8 @@ function renderBike() {
   }
 
   // Reset timer display
-  const s = getSettings();
   if (!bikeRunning && bikeSeconds === 0) {
-    document.getElementById('bikeTimerDisplay').textContent = fmtTime(s.bikeDuration * 60);
+    document.getElementById('bikeTimerDisplay').textContent = fmtTime(getTodayBikeRemaining());
   }
 }
 
