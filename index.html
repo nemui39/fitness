@@ -1169,9 +1169,10 @@ function renderWorkoutHistory() {
 
     html += `<div style="border-bottom:1px solid var(--border);padding:12px 0;">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="document.getElementById('wh_detail_${i}').style.display=document.getElementById('wh_detail_${i}').style.display==='none'?'block':'none'">
-        <div style="display:flex;gap:16px;align-items:center;">
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
           <span style="font-weight:700;">${d.date}</span>
           <span style="color:${sched ? sched.color : 'var(--text2)'};font-weight:600;">${sched ? sched.labelJa : 'N/A'}</span>
+          ${d.memo ? `<span style="font-size:0.8rem;color:var(--accent4);">${d.memo}</span>` : ''}
         </div>
         <div style="display:flex;gap:12px;align-items:center;">
           <span style="font-size:0.85rem;color:var(--text2);">Cond: ${avgVal}/5</span>
