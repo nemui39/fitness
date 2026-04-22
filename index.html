@@ -76,11 +76,13 @@
 
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
   .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
   .grid-7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
 
   @media (max-width: 900px) {
     .grid-2, .grid-3, .grid-5 { grid-template-columns: 1fr; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
     .grid-7 { grid-template-columns: repeat(4, 1fr); }
     .main { padding: 16px; }
     .header, .nav { padding-left: 16px; padding-right: 16px; }
@@ -437,7 +439,7 @@
 <!-- ===== WEIGHT ===== -->
 <div id="tab-weight" class="tab-content">
   <h2 class="section-title">Weight & Body Fat</h2>
-  <div class="grid-3" id="weightStats"></div>
+  <div class="grid-4" id="weightStats"></div>
   <div class="grid-2" style="margin-top:20px;">
     <div class="card">
       <div class="card-title">Record Entry</div>
@@ -486,6 +488,10 @@
   <div class="card" id="settingsCard"></div>
   <div class="card" style="margin-top:20px;">
     <div class="card-title">Target Settings</div>
+    <div class="setting-row">
+      <label>Height (cm)</label>
+      <input type="number" id="height" step="0.1" value="167" onchange="saveSettings()">
+    </div>
     <div class="setting-row">
       <label>Target Weight (kg)</label>
       <input type="number" id="targetWeight" step="0.1" value="58" onchange="saveSettings()">
@@ -564,14 +570,17 @@ function loadObj(k, def) { try { return JSON.parse(localStorage.getItem(k)) || d
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
 function getSettings() {
-  return loadObj(KEYS.settings, { targetWeight: 58, bikeDuration: 25 });
+  return loadObj(KEYS.settings, { targetWeight: 58, bikeDuration: 25, height: 167 });
 }
 function saveSettings() {
   const s = {
     targetWeight: parseFloat(document.getElementById('targetWeight').value) || 58,
     bikeDuration: parseInt(document.getElementById('bikeDuration').value) || 25,
+    height: parseFloat(document.getElementById('height').value) || 167,
   };
   save(KEYS.settings, s);
+  if (document.getElementById('tab-weight').classList.contains('active')) renderWeightTab();
+  if (document.getElementById('tab-dashboard').classList.contains('active')) renderDashboard();
 }
 
 // Exercise rest times (editable)
@@ -1344,12 +1353,27 @@ function renderWeightTab() {
   const first = data.length ? data[0] : null;
   const totalW = last && first ? (last.weight - first.weight).toFixed(1) : '--';
   const totalBf = last && first ? (last.bf - first.bf).toFixed(1) : '--';
-  const lean = last ? (last.weight * (100 - last.bf) / 100).toFixed(1) : '--';
+  const leanNum = last ? last.weight * (100 - last.bf) / 100 : null;
+  const lean = leanNum != null ? leanNum.toFixed(1) : '--';
+  const settings = getSettings();
+  const heightM = (settings.height || 167) / 100;
+  const ffmiNum = leanNum != null ? leanNum / (heightM * heightM) : null;
+  const ffmi = ffmiNum != null ? ffmiNum.toFixed(1) : '--';
+  let ffmiLabel = '';
+  let ffmiColor = 'var(--accent3)';
+  if (ffmiNum != null) {
+    if (ffmiNum < 18) { ffmiLabel = '普通'; ffmiColor = 'var(--text2)'; }
+    else if (ffmiNum < 20) { ffmiLabel = 'やや筋肉質'; ffmiColor = 'var(--accent2)'; }
+    else if (ffmiNum < 22) { ffmiLabel = 'かなり筋肉質'; ffmiColor = 'var(--accent)'; }
+    else if (ffmiNum < 25) { ffmiLabel = 'アスリート級'; ffmiColor = 'var(--accent4)'; }
+    else { ffmiLabel = 'ナチュラル限界'; ffmiColor = 'var(--danger)'; }
+  }
 
   document.getElementById('weightStats').innerHTML = `
     <div class="stat-card"><div class="stat-label">Weight Change</div><div class="stat-value" style="font-size:1.8rem;color:${parseFloat(totalW)<=0?'var(--success)':'var(--danger)'}">${totalW > 0?'+':''}${totalW} kg</div></div>
     <div class="stat-card"><div class="stat-label">BF Change</div><div class="stat-value" style="font-size:1.8rem;color:${parseFloat(totalBf)<=0?'var(--success)':'var(--danger)'}">${totalBf > 0?'+':''}${totalBf} %</div></div>
-    <div class="stat-card"><div class="stat-label">Lean Mass</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent2)">${lean} kg</div></div>`;
+    <div class="stat-card"><div class="stat-label">Lean Mass</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent2)">${lean} kg</div></div>
+    <div class="stat-card"><div class="stat-label">FFMI</div><div class="stat-value" style="font-size:1.8rem;color:${ffmiColor}">${ffmi}</div><div style="font-size:0.75rem;color:var(--text2);margin-top:2px;">${ffmiLabel}</div></div>`;
 
   // Calorie balance
   if (data.length >= 2) {
@@ -1469,6 +1493,7 @@ function renderSettings() {
   const s = getSettings();
   document.getElementById('targetWeight').value = s.targetWeight;
   document.getElementById('bikeDuration').value = s.bikeDuration;
+  document.getElementById('height').value = s.height || 167;
 
   let html = '';
   SCHEDULE.forEach((sched, di) => {
