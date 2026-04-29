@@ -295,6 +295,18 @@
   </div>
 </div>
 
+<!-- Tabata Timer Overlay -->
+<div class="rest-overlay" id="tabataOverlay">
+  <div id="tabataPhase" style="font-size:2rem;font-weight:800;letter-spacing:4px;margin-bottom:8px;">WORK</div>
+  <div class="rest-timer-display" id="tabataTimerDisplay">20</div>
+  <div style="font-size:1.3rem;color:var(--text2);margin-top:8px;">Set <span id="tabataSetNum" style="color:var(--accent);font-weight:700;">1</span> / 8</div>
+  <div class="rest-progress" style="width:400px;"><div class="rest-progress-bar" id="tabataProgressBar"></div></div>
+  <div style="font-size:0.95rem;color:var(--text2);margin-top:4px;">Total: <span id="tabataTotal">00:00</span> / 04:00</div>
+  <div class="rest-controls">
+    <button class="btn btn-danger" onclick="stopTabata()">STOP</button>
+  </div>
+</div>
+
 <div class="header">
   <h1>FITNESS DASHBOARD</h1>
   <span class="header-date" id="headerDate"></span>
@@ -350,9 +362,10 @@
         <select id="workoutDaySelect" onchange="renderWorkoutDay(parseInt(this.value))">
           <option value="0">Mon - Shoulders & Back</option>
           <option value="1">Tue - Lower Body + Abs</option>
-          <option value="2">Wed - Recovery</option>
+          <option value="2">Wed - HIIT (Tabata)</option>
           <option value="3">Thu - Chest & Legs</option>
           <option value="4">Fri - Upper Body</option>
+          <option value="5">Sat - HIIT (Tabata)</option>
         </select>
       </div>
     </div>
@@ -531,11 +544,12 @@ const SCHEDULE = [
     ]
   },
   {
-    day: 'Wed', dayJa: '水', label: 'Recovery',
-    labelJa: '筋トレ休み',
-    color: '#636e72',
-    exercises: [],
-    bikeOnly: true
+    day: 'Wed', dayJa: '水', label: 'HIIT (Tabata)',
+    labelJa: 'HIIT（タバタ）',
+    color: '#fdcb6e',
+    exercises: [
+      { name: 'Burpee Tabata', nameJa: 'バーピー・タバタ', sets: 2, reps: '20s × 8 (4min)', rest: 600, note: '20秒全力＋10秒休憩×8セット = 4分。セット間は10分休憩。ジャンプきつければ強度落としてOK。' },
+    ]
   },
   {
     day: 'Thu', dayJa: '木', label: 'Chest & Legs',
@@ -556,9 +570,17 @@ const SCHEDULE = [
       { name: 'Normal Chin-up (Form)', nameJa: '通常懸垂（フォーム重視）', sets: 3, reps: 'Max', rest: 90, note: 'Wider grip. Stop the set when form breaks down.' },
     ]
   },
+  {
+    day: 'Sat', dayJa: '土', label: 'HIIT (Tabata)',
+    labelJa: 'HIIT（タバタ）',
+    color: '#fdcb6e',
+    exercises: [
+      { name: 'Burpee Tabata', nameJa: 'バーピー・タバタ', sets: 2, reps: '20s × 8 (4min)', rest: 600, note: '20秒全力＋10秒休憩×8セット = 4分。セット間は10分休憩。' },
+    ]
+  },
 ];
 
-// Sat=5, Sun=6 → rest days
+// Sun=6 → rest day
 
 // ============================================================
 // DATA
@@ -657,6 +679,92 @@ function addRestTime(delta) {
   restRemaining = Math.max(1, restRemaining + delta);
   restTotal = Math.max(restTotal, restRemaining);
   updateRestDisplay();
+}
+
+// ============================================================
+// TABATA TIMER (20s WORK + 10s REST × 8)
+// ============================================================
+let tabataInterval = null;
+let tabataState = null; // { phase, secondsLeft, setNum, totalSec }
+
+function beep(freq, duration) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.value = 0.3;
+    osc.start();
+    osc.stop(ctx.currentTime + (duration || 0.15));
+  } catch {}
+}
+
+function startTabata() {
+  const overlay = document.getElementById('tabataOverlay');
+  overlay.classList.add('active');
+  tabataState = { phase: 'WORK', secondsLeft: 20, setNum: 1, totalSec: 0 };
+  updateTabataDisplay();
+  beep(880, 0.2);
+
+  clearInterval(tabataInterval);
+  tabataInterval = setInterval(() => {
+    tabataState.secondsLeft--;
+    tabataState.totalSec++;
+    if (tabataState.secondsLeft <= 0) advanceTabata();
+    else {
+      updateTabataDisplay();
+      // last 3 seconds beep
+      if (tabataState.secondsLeft <= 3 && tabataState.secondsLeft > 0) beep(660, 0.08);
+    }
+  }, 1000);
+}
+
+function advanceTabata() {
+  if (tabataState.phase === 'WORK') {
+    if (tabataState.setNum >= 8) {
+      finishTabata();
+      return;
+    }
+    tabataState.phase = 'REST';
+    tabataState.secondsLeft = 10;
+    beep(440, 0.3); // low for rest
+  } else {
+    tabataState.phase = 'WORK';
+    tabataState.setNum++;
+    tabataState.secondsLeft = 20;
+    beep(880, 0.3); // high for work
+  }
+  updateTabataDisplay();
+}
+
+function updateTabataDisplay() {
+  const phaseEl = document.getElementById('tabataPhase');
+  phaseEl.textContent = tabataState.phase;
+  phaseEl.style.color = tabataState.phase === 'WORK' ? 'var(--danger)' : 'var(--accent2)';
+  document.getElementById('tabataTimerDisplay').textContent = tabataState.secondsLeft;
+  document.getElementById('tabataSetNum').textContent = tabataState.setNum;
+  const m = String(Math.floor(tabataState.totalSec / 60)).padStart(2, '0');
+  const s = String(tabataState.totalSec % 60).padStart(2, '0');
+  document.getElementById('tabataTotal').textContent = `${m}:${s}`;
+  const pct = (tabataState.totalSec / 240) * 100;
+  document.getElementById('tabataProgressBar').style.width = Math.min(100, pct) + '%';
+}
+
+function finishTabata() {
+  clearInterval(tabataInterval);
+  document.getElementById('tabataOverlay').classList.remove('active');
+  beep(1000, 0.4);
+  setTimeout(() => beep(1000, 0.4), 500);
+  setTimeout(() => beep(1200, 0.6), 1000);
+  tabataState = null;
+}
+
+function stopTabata() {
+  clearInterval(tabataInterval);
+  document.getElementById('tabataOverlay').classList.remove('active');
+  tabataState = null;
 }
 
 // ============================================================
@@ -811,8 +919,8 @@ let workoutSetData = {}; // { "dayIdx_exIdx_setIdx": { reps: N, done: bool } }
 
 function getScheduleIndex() {
   const dow = new Date().getDay(); // 0=Sun
-  if (dow >= 1 && dow <= 5) return dow - 1; // Mon=0..Fri=4
-  return -1;
+  if (dow >= 1 && dow <= 6) return dow - 1; // Mon=0..Sat=5
+  return -1; // Sunday
 }
 
 function updateTubeTotal(dayIdx, ei) {
@@ -922,22 +1030,17 @@ function renderDashboard() {
   if (dayIdx >= 0) {
     const s = SCHEDULE[dayIdx];
     const done = isTodayWorkoutDone();
-    if (s.bikeOnly) {
-      ts.innerHTML = `<div class="today-workout">
-        <h3>${s.dayJa} - ${s.labelJa} ${done ? '<span class="completed-badge">DONE</span>' : ''}</h3>
-        <p style="color:var(--text2)">Bike only day. Stretch and ride.</p>
-        <div style="margin-top:12px;"><button class="btn btn-primary" onclick="switchTab('bike',this)">Go to Bike Timer</button></div>
-      </div>`;
-    } else {
-      ts.innerHTML = `<div class="today-workout">
-        <h3>${s.dayJa} - ${s.labelJa} ${done ? '<span class="completed-badge">DONE</span>' : ''}</h3>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">
-          ${s.exercises.map(e => `<span style="color:var(--text2);font-size:0.9rem;">${e.nameJa} <span style="color:var(--accent2)">${e.sets}x${e.reps}</span></span>`).join(' | ')}
-        </div>
-        <div style="margin-top:8px;color:var(--text2);font-size:0.85rem;">+ Bike 25 min</div>
-        <div style="margin-top:12px;"><button class="btn btn-primary" onclick="switchTab('workout',document.querySelectorAll('.nav-btn')[1])">Start Workout</button></div>
-      </div>`;
-    }
+    const isTabataDay = s.exercises.some(e => e.name === 'Burpee Tabata');
+    const dow2 = new Date().getDay();
+    const includesBike = !isTabataDay || dow2 === 3; // Wed includes bike, Sat doesn't
+    ts.innerHTML = `<div class="today-workout">
+      <h3>${s.dayJa} - ${s.labelJa} ${done ? '<span class="completed-badge">DONE</span>' : ''}</h3>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">
+        ${s.exercises.map(e => `<span style="color:var(--text2);font-size:0.9rem;">${e.nameJa} <span style="color:var(--accent2)">${e.sets}x${e.reps}</span></span>`).join(' | ')}
+      </div>
+      ${includesBike ? '<div style="margin-top:8px;color:var(--text2);font-size:0.85rem;">+ Bike 25 min</div>' : ''}
+      <div style="margin-top:12px;"><button class="btn btn-primary" onclick="switchTab('workout',document.querySelectorAll('.nav-btn')[1])">Start Workout</button></div>
+    </div>`;
   } else {
     ts.innerHTML = `<div class="today-workout"><h3>REST DAY</h3><p style="color:var(--text2)">Enjoy recovery. Sleep well, eat protein.</p></div>`;
   }
@@ -975,13 +1078,14 @@ function renderDashboard() {
   let wh = '';
   for (let i = 0; i < 7; i++) {
     const isToday = (i + 1) === dow || (i === 6 && dow === 0);
-    const isRest = i >= 5;
-    const sched = i < 5 ? SCHEDULE[i] : null;
+    const isRest = i >= 6; // Sun only
+    const sched = i < 6 ? SCHEDULE[i] : null;
     const done = wkData.some(d => d.date === todayStr() && d.dayIdx === i);
+    const showBike = sched && !sched.exercises.some(e => e.name === 'Burpee Tabata');
     wh += `<div class="day-card${isToday ? ' today' : ''}${isRest ? ' rest' : ''}">
       <div class="day-name">${dayLabels[i]}</div>
       <div class="day-target" style="font-size:0.85rem;${sched ? 'color:'+sched.color : ''}">${isRest ? 'REST' : sched.labelJa}</div>
-      ${!isRest ? '<div class="day-exercises">+ Bike</div>' : ''}
+      ${showBike ? '<div class="day-exercises">+ Bike</div>' : ''}
       ${done && isToday ? '<span class="completed-badge">DONE</span>' : ''}
     </div>`;
   }
@@ -1021,7 +1125,7 @@ function renderWorkout() {
 
   // Day selector tabs
   let selHtml = '<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">';
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < SCHEDULE.length; i++) {
     const s = SCHEDULE[i];
     const isActive = i === dayIdx;
     selHtml += `<button class="btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="selectWorkoutDay(${i})" style="border-left:3px solid ${s.color}">${s.dayJa} ${s.labelJa}</button>`;
@@ -1077,6 +1181,7 @@ function renderWorkoutDay(dayIdx) {
         <div class="exercise-meta">${ex.sets} x ${ex.reps}</div>
       </div>
       <div class="exercise-note">${ex.note}</div>
+      ${ex.name === 'Burpee Tabata' ? `<div style="margin-top:12px;"><button class="btn btn-primary" onclick="startTabata()" style="width:100%;font-size:1rem;">▶ Start Tabata Timer (4min auto)</button></div>` : ''}
       ${ex.tube ? `<div style="margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         <span style="font-size:0.8rem;color:var(--text2);font-weight:600;">Tube:</span>
         <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
@@ -1108,6 +1213,13 @@ function renderWorkoutDay(dayIdx) {
           <input type="text" class="set-input" id="reps_${key}_L" placeholder="${ex.reps}" style="width:60px;">
           <input type="checkbox" class="set-check" id="check_${key}_L">
           <button class="btn btn-secondary btn-sm" onclick="startRest(${rest},'${ex.nameJa} - Set ${si+1} Rest')" style="padding:4px 10px;font-size:0.7rem;">REST ${rest}s</button>
+        </div>`;
+      } else if (ex.checkOnly || ex.name === 'Burpee Tabata') {
+        const restLabel = rest >= 60 ? `${Math.round(rest/60)}min` : `${rest}s`;
+        html += `<div class="set-row">
+          <span class="set-label">Set ${si + 1}</span>
+          <input type="checkbox" class="set-check" id="check_${key}">
+          ${si < ex.sets - 1 ? `<button class="btn btn-secondary btn-sm" onclick="startRest(${rest},'${ex.nameJa} - Set ${si+1} Rest')" style="padding:4px 12px;font-size:0.75rem;">REST ${restLabel}</button>` : ''}
         </div>`;
       } else {
         html += `<div class="set-row">
@@ -1172,7 +1284,7 @@ function renderWorkoutHistory() {
   }
   let html = '';
   data.forEach((d, i) => {
-    const sched = d.dayIdx >= 0 && d.dayIdx < 5 ? SCHEDULE[d.dayIdx] : null;
+    const sched = d.dayIdx >= 0 && d.dayIdx < SCHEDULE.length ? SCHEDULE[d.dayIdx] : null;
     const cond = d.conditions || {};
     const avgCond = Object.values(cond).filter(v => v > 0);
     const avgVal = avgCond.length ? (avgCond.reduce((a, b) => a + b, 0) / avgCond.length).toFixed(1) : '-';
@@ -1220,9 +1332,12 @@ function renderWorkoutHistory() {
         html += '</div><div style="display:flex;gap:12px;flex-wrap:wrap;">';
         ex.sets.forEach((s, si) => {
           if (s.repsR !== undefined) {
-            html += `<span style="font-size:0.8rem;color:var(--text2);">Set${si+1}: <span style="color:var(--accent2);">R:${s.repsR || '-'}</span> <span style="color:var(--accent3);">L:${s.repsL || '-'}</span></span>`;
+            const rDisp = s.repsR ? s.repsR : (s.doneR ? '✓' : '-');
+            const lDisp = s.repsL ? s.repsL : (s.doneL ? '✓' : '-');
+            html += `<span style="font-size:0.8rem;color:var(--text2);">Set${si+1}: <span style="color:var(--accent2);">R:${rDisp}</span> <span style="color:var(--accent3);">L:${lDisp}</span></span>`;
           } else {
-            html += `<span style="font-size:0.8rem;color:var(--text2);">Set${si+1}: <span style="color:var(--text);">${s.reps || '-'}</span></span>`;
+            const disp = s.reps ? s.reps : (s.done ? '<span style="color:var(--success);">✓</span>' : '-');
+            html += `<span style="font-size:0.8rem;color:var(--text2);">Set${si+1}: <span style="color:var(--text);">${disp}</span></span>`;
           }
         });
         html += '</div></div>';
