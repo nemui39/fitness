@@ -1276,6 +1276,45 @@ function setCondition(key, val, el) {
   });
 }
 
+function editWorkoutHistory(date) {
+  const data = load(KEYS.workout);
+  const idx = data.findIndex(d => d.date === date);
+  if (idx < 0) { alert('Record not found'); return; }
+  const rec = data[idx];
+  const newDate = prompt('日付 (YYYY-MM-DD):', rec.date);
+  if (!newDate || !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+    if (newDate !== null) alert('Invalid date format');
+    return;
+  }
+  const menuLabels = SCHEDULE.map((s, i) => `${i}: ${s.dayJa} ${s.labelJa}`).join('\n');
+  const newDayStr = prompt(`メニュー番号:\n${menuLabels}`, rec.dayIdx);
+  const newDayIdx = parseInt(newDayStr);
+  if (isNaN(newDayIdx) || newDayIdx < 0 || newDayIdx >= SCHEDULE.length) {
+    if (newDayStr !== null) alert('Invalid menu index');
+    return;
+  }
+  if (newDate !== rec.date && data.some(d => d.date === newDate)) {
+    if (!confirm(`${newDate} already has a record. Overwrite?`)) return;
+    const dupIdx = data.findIndex(d => d.date === newDate);
+    data.splice(dupIdx, 1);
+  }
+  rec.date = newDate;
+  rec.dayIdx = newDayIdx;
+  data.sort((a, b) => a.date.localeCompare(b.date));
+  save(KEYS.workout, data);
+  renderDashboard();
+}
+
+function deleteWorkoutHistory(date) {
+  if (!confirm(`Delete record for ${date}?`)) return;
+  const data = load(KEYS.workout);
+  const idx = data.findIndex(d => d.date === date);
+  if (idx < 0) return;
+  data.splice(idx, 1);
+  save(KEYS.workout, data);
+  renderDashboard();
+}
+
 function renderWorkoutHistory() {
   const data = load(KEYS.workout).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20);
   if (!data.length) {
@@ -1299,6 +1338,8 @@ function renderWorkoutHistory() {
         </div>
         <div style="display:flex;gap:12px;align-items:center;">
           <span style="font-size:0.85rem;color:var(--text2);">Cond: ${avgVal}/5</span>
+          <button class="delete-btn" title="Edit" style="color:var(--accent);font-size:0.95rem;" onclick="event.stopPropagation();editWorkoutHistory('${d.date}')">&#9998;</button>
+          <button class="delete-btn" title="Delete" onclick="event.stopPropagation();deleteWorkoutHistory('${d.date}')">x</button>
           <span style="color:var(--text2);font-size:0.8rem;">▼</span>
         </div>
       </div>
