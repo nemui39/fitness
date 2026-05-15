@@ -361,11 +361,11 @@
         <label>Menu</label>
         <select id="workoutDaySelect" onchange="renderWorkoutDay(parseInt(this.value))">
           <option value="0">Mon - Shoulders & Back</option>
-          <option value="1">Tue - Lower Body + Abs</option>
-          <option value="2">Wed - HIIT (Tabata)</option>
-          <option value="3">Thu - Chest & Legs</option>
-          <option value="4">Fri - Upper Body</option>
-          <option value="5">Sat - HIIT (Tabata)</option>
+          <option value="1">Tue - Chest + HIIT</option>
+          <option value="2">Wed - Legs</option>
+          <option value="3">Thu - Back + HIIT</option>
+          <option value="4">Fri - Chest</option>
+          <option value="5">Sat - Legs + Abs + HIIT</option>
         </select>
       </div>
     </div>
@@ -528,54 +528,57 @@ const SCHEDULE = [
     labelJa: '肩・背中',
     color: '#0984e3',
     exercises: [
-      { name: 'Parallel Chin-up', nameJa: 'パラレルチンニング', sets: 3, reps: 'Max', rest: 90, note: 'Parallel grip. Elbows close to body. Focus on lats & chest.' },
-      { name: 'Normal Chin-up', nameJa: '通常懸垂', sets: 3, reps: 'Max', rest: 90, note: 'Wider grip. No kipping. Pull with back, control the descent.' },
       { name: 'Tube Lean-Away Side Raise', nameJa: 'チューブ斜めサイドレイズ', sets: 3, reps: '12-15 each', rest: 60, bilateral: true, tube: true, note: 'Lean body sideways holding a pole. Target lateral deltoid.' },
       { name: 'Tube Face Pull', nameJa: 'チューブ・フェイスプル', sets: 3, reps: '15', rest: 60, tube: true, note: 'Pull to face height. Squeeze shoulder blades.' },
+      { name: 'Parallel Chin-up', nameJa: 'パラレルチンニング', sets: 3, reps: 'Max', rest: 90, note: 'Parallel grip. Elbows close to body. Focus on lats & chest.' },
     ]
   },
   {
-    day: 'Tue', dayJa: '火', label: 'Lower Body + Abs',
-    labelJa: '下半身＋腹筋',
-    color: '#00b894',
-    exercises: [
-      { name: 'Bulgarian Squat (Wide)', nameJa: 'ブルガリアンスクワット（ワイド）', sets: 3, reps: '15-20 each', rest: 90, bilateral: true, note: 'Wide stance, toes 45 degrees out. Focus on outer glutes. 30s between legs.' },
-      { name: 'Ab Roller (Kneeling)', nameJa: 'アブローラー（膝コロ）', sets: 3, reps: '10', rest: 60, note: 'Keep looking at belly button. Never arch lower back.' },
-    ]
-  },
-  {
-    day: 'Wed', dayJa: '水', label: 'HIIT (Tabata)',
-    labelJa: 'HIIT（タバタ）',
-    color: '#fdcb6e',
-    exercises: [
-      { name: 'Burpee Tabata', nameJa: 'バーピー・タバタ', sets: 2, reps: '20s × 8 (4min)', rest: 600, note: '20秒全力＋10秒休憩×8セット = 4分。セット間は10分休憩。ジャンプきつければ強度落としてOK。' },
-    ]
-  },
-  {
-    day: 'Thu', dayJa: '木', label: 'Chest & Legs',
-    labelJa: '胸・脚',
+    day: 'Tue', dayJa: '火', label: 'Chest + HIIT',
+    labelJa: '胸＋HIIT',
     color: '#e17055',
     exercises: [
-      { name: 'Dips', nameJa: 'ディップス', sets: 3, reps: '5-6', rest: 90, note: 'Lean forward slightly. Go deep to 90 degrees.' },
-      { name: 'Bulgarian Squat (Wide)', nameJa: 'ブルガリアンスクワット（ワイド）', sets: 3, reps: '15-20 each', rest: 90, bilateral: true, note: 'Wide stance, toes 45 degrees out. Focus on outer glutes. 30s between legs.' },
+      { name: 'Dips', nameJa: 'ディップス', sets: 3, reps: '6-8', rest: 90, weighted: true, note: 'Lean forward slightly. Go deep to 90 degrees. Backpack loaded for hypertrophy.' },
+      { name: 'Tube Face Pull', nameJa: 'チューブ・フェイスプル', sets: 3, reps: '15', rest: 60, tube: true, note: 'Pull to face height. Squeeze shoulder blades. 後肩2回目。' },
+      { name: 'Burpee Tabata', nameJa: 'バーピー・タバタ', sets: 1, reps: '20s × 8 (4min)', rest: 600, note: '20秒全力＋10秒休憩×8セット = 4分。' },
     ]
   },
   {
-    day: 'Fri', dayJa: '金', label: 'Upper Body',
-    labelJa: '上半身メイン',
+    day: 'Wed', dayJa: '水', label: 'Legs',
+    labelJa: '脚',
+    color: '#00b894',
+    exercises: [
+      { name: 'Bulgarian Squat (Wide)', nameJa: 'ブルガリアンスクワット（ワイド）', sets: 3, reps: '15-20 each', rest: 90, bilateral: true, weighted: true, note: 'Wide stance, toes 45 degrees out. Focus on outer glutes. Backpack loaded.' },
+      { name: 'Single-Leg RDL', nameJa: 'シングルレッグRDL', sets: 3, reps: '8-10 each', rest: 90, bilateral: true, weighted: true, note: '片脚で立ち、もう片脚を後ろに上げながら前傾。体がT字になるまで倒す。ハム・尻・脊柱起立筋を狙う。' },
+    ]
+  },
+  {
+    day: 'Thu', dayJa: '木', label: 'Back + HIIT',
+    labelJa: '背中＋HIIT',
     color: '#6c5ce7',
     exercises: [
-      { name: 'Push-up (Slow Tempo)', nameJa: 'プッシュアップ（スロー）', sets: 3, reps: '15-20', rest: 90, note: '2s down, 1s hold, 1s up. Focus on chest contraction.' },
-      { name: 'Parallel Chin-up (Form)', nameJa: 'パラレルチンニング（フォーム重視）', sets: 3, reps: 'Max', rest: 90, note: 'Parallel grip. Stop the set when form breaks down.' },
-      { name: 'Normal Chin-up (Form)', nameJa: '通常懸垂（フォーム重視）', sets: 3, reps: 'Max', rest: 90, note: 'Wider grip. Stop the set when form breaks down.' },
+      { name: 'Normal Chin-up', nameJa: '通常懸垂', sets: 3, reps: 'Max', rest: 90, note: 'Wider grip. No kipping. Pull with back, control the descent.' },
+      { name: 'Tube Lean-Away Side Raise', nameJa: 'チューブ斜めサイドレイズ', sets: 3, reps: '12-15 each', rest: 60, bilateral: true, tube: true, note: 'Lean body sideways holding a pole. 横肩2回目。' },
+      { name: 'Burpee Tabata', nameJa: 'バーピー・タバタ', sets: 1, reps: '20s × 8 (4min)', rest: 600, note: '20秒全力＋10秒休憩×8セット = 4分。' },
     ]
   },
   {
-    day: 'Sat', dayJa: '土', label: 'HIIT (Tabata)',
-    labelJa: 'HIIT（タバタ）',
-    color: '#fdcb6e',
+    day: 'Fri', dayJa: '金', label: 'Chest',
+    labelJa: '胸',
+    color: '#e17055',
     exercises: [
-      { name: 'Burpee Tabata', nameJa: 'バーピー・タバタ', sets: 2, reps: '20s × 8 (4min)', rest: 600, note: '20秒全力＋10秒休憩×8セット = 4分。セット間は10分休憩。' },
+      { name: 'Push-up', nameJa: 'プッシュアップ', sets: 3, reps: '8-12', rest: 90, weighted: true, note: 'Backpack loaded. Control descent, full ROM. Focus on chest contraction.' },
+      { name: 'Tube Chest Press', nameJa: 'チューブ・チェストプレス', sets: 3, reps: '10-12', rest: 90, tube: true, note: 'チューブを背中側にアンカー。立位 or 座位で胸前から押し出す。胸の別角度刺激。' },
+    ]
+  },
+  {
+    day: 'Sat', dayJa: '土', label: 'Legs + Abs + HIIT',
+    labelJa: '脚＋腹＋HIIT',
+    color: '#00b894',
+    exercises: [
+      { name: 'Bulgarian Squat (Wide)', nameJa: 'ブルガリアンスクワット（ワイド）', sets: 3, reps: '15-20 each', rest: 90, bilateral: true, weighted: true, note: 'Wide stance, toes 45 degrees out. Focus on outer glutes. Backpack loaded.' },
+      { name: 'Ab Roller (Kneeling)', nameJa: 'アブローラー（膝コロ）', sets: 3, reps: '10', rest: 60, note: 'Keep looking at belly button. Never arch lower back. 腹圧の影響を考慮して最後に。' },
+      { name: 'Burpee Tabata', nameJa: 'バーピー・タバタ', sets: 1, reps: '20s × 8 (4min)', rest: 600, note: '20秒全力＋10秒休憩×8セット = 4分。' },
     ]
   },
 ];
@@ -971,6 +974,11 @@ function saveWorkoutLog() {
           return cb && cb.checked;
         });
       }
+      if (ex.weighted) {
+        const loadEl = document.getElementById(`load_${dayIdx}_${ei}`);
+        const loadVal = loadEl ? parseFloat(loadEl.value) : NaN;
+        if (!isNaN(loadVal)) exRecord.load = loadVal;
+      }
       exercises.push(exRecord);
     });
   }
@@ -1030,9 +1038,8 @@ function renderDashboard() {
   if (dayIdx >= 0) {
     const s = SCHEDULE[dayIdx];
     const done = isTodayWorkoutDone();
-    const isTabataDay = s.exercises.some(e => e.name === 'Burpee Tabata');
     const dow2 = new Date().getDay();
-    const includesBike = !isTabataDay || dow2 === 3; // Wed includes bike, Sat doesn't
+    const includesBike = dow2 >= 1 && dow2 <= 5; // Mon-Fri only
     ts.innerHTML = `<div class="today-workout">
       <h3>${s.dayJa} - ${s.labelJa} ${done ? '<span class="completed-badge">DONE</span>' : ''}</h3>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">
@@ -1081,7 +1088,7 @@ function renderDashboard() {
     const isRest = i >= 6; // Sun only
     const sched = i < 6 ? SCHEDULE[i] : null;
     const done = wkData.some(d => d.date === todayStr() && d.dayIdx === i);
-    const showBike = sched && !sched.exercises.some(e => e.name === 'Burpee Tabata');
+    const showBike = sched && i < 5; // Mon-Fri only
     wh += `<div class="day-card${isToday ? ' today' : ''}${isRest ? ' rest' : ''}">
       <div class="day-name">${dayLabels[i]}</div>
       <div class="day-target" style="font-size:0.85rem;${sched ? 'color:'+sched.color : ''}">${isRest ? 'REST' : sched.labelJa}</div>
@@ -1182,6 +1189,12 @@ function renderWorkoutDay(dayIdx) {
       </div>
       <div class="exercise-note">${ex.note}</div>
       ${ex.name === 'Burpee Tabata' ? `<div style="margin-top:12px;"><button class="btn btn-primary" onclick="startTabata()" style="width:100%;font-size:1rem;">▶ Start Tabata Timer (4min auto)</button></div>` : ''}
+      ${ex.weighted ? `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+        <span style="font-size:0.8rem;color:var(--text2);font-weight:600;">Load:</span>
+        <input type="number" id="load_${dayIdx}_${ei}" step="0.1" min="0" placeholder="0" style="width:80px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:0.9rem;text-align:right;">
+        <span style="font-size:0.85rem;color:var(--accent4);font-weight:600;">kg</span>
+        <span style="font-size:0.75rem;color:var(--text2);margin-left:4px;">(リュック)</span>
+      </div>` : ''}
       ${ex.tube ? `<div style="margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         <span style="font-size:0.8rem;color:var(--text2);font-weight:600;">Tube:</span>
         <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
@@ -1369,6 +1382,9 @@ function renderWorkoutHistory() {
           <div style="font-weight:600;font-size:0.9rem;margin-bottom:6px;">${ex.name}`;
         if (ex.tubes && ex.tubes.length) {
           html += ` <span style="font-size:0.75rem;color:var(--accent4);">[${ex.tubes.join('+')}kg = ${ex.tubes.reduce((a,b)=>a+b,0)}kg]</span>`;
+        }
+        if (ex.load != null) {
+          html += ` <span style="font-size:0.75rem;color:var(--accent4);">[+${ex.load}kg]</span>`;
         }
         html += '</div><div style="display:flex;gap:12px;flex-wrap:wrap;">';
         ex.sets.forEach((s, si) => {
