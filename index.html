@@ -1127,33 +1127,38 @@ function renderDashboard() {
   renderWorkoutHistory();
 }
 
-function renderWorkout() {
-  const dayIdx = getScheduleIndex();
+let currentWorkoutDay = 0;
 
-  // Day selector tabs
+function renderDaySelector(activeIdx) {
   let selHtml = '<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">';
   for (let i = 0; i < SCHEDULE.length; i++) {
     const s = SCHEDULE[i];
-    const isActive = i === dayIdx;
+    const isActive = i === activeIdx;
     selHtml += `<button class="btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="selectWorkoutDay(${i})" style="border-left:3px solid ${s.color}">${s.dayJa} ${s.labelJa}</button>`;
   }
   selHtml += '</div>';
   document.getElementById('workoutDaySelector').innerHTML = selHtml;
+}
 
-  const activeDayIdx = dayIdx >= 0 ? dayIdx : 0;
-  renderWorkoutDay(activeDayIdx);
+function renderWorkout() {
+  const dayIdx = getScheduleIndex();
+  currentWorkoutDay = dayIdx >= 0 ? dayIdx : 0;
+  renderDaySelector(currentWorkoutDay);
+  renderWorkoutDay(currentWorkoutDay);
   renderCondition();
 
   // Set date and menu defaults
   const dateInput = document.getElementById('workoutDate');
   if (dateInput) dateInput.value = todayStr();
   const daySelect = document.getElementById('workoutDaySelect');
-  if (daySelect) daySelect.value = activeDayIdx;
+  if (daySelect) daySelect.value = currentWorkoutDay;
 }
 
 function selectWorkoutDay(dayIdx) {
+  currentWorkoutDay = dayIdx;
   const daySelect = document.getElementById('workoutDaySelect');
   if (daySelect) daySelect.value = dayIdx;
+  renderDaySelector(dayIdx);
   renderWorkoutDay(dayIdx);
 }
 
