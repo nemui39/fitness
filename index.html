@@ -78,11 +78,13 @@
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
   .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
   .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .stat-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
   .grid-7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
 
   @media (max-width: 900px) {
     .grid-2, .grid-3, .grid-5 { grid-template-columns: 1fr; }
     .grid-4 { grid-template-columns: 1fr 1fr; }
+    .stat-grid-5 { grid-template-columns: 1fr 1fr; }
     .grid-7 { grid-template-columns: repeat(4, 1fr); }
     .main { padding: 16px; }
     .header, .nav { padding-left: 16px; padding-right: 16px; }
@@ -452,7 +454,7 @@
 <!-- ===== WEIGHT ===== -->
 <div id="tab-weight" class="tab-content">
   <h2 class="section-title">Weight & Body Fat</h2>
-  <div class="grid-4" id="weightStats"></div>
+  <div class="stat-grid-5" id="weightStats"></div>
   <div class="grid-2" style="margin-top:20px;">
     <div class="card">
       <div class="card-title">Record Entry</div>
@@ -508,6 +510,14 @@
     <div class="setting-row">
       <label>Target Weight (kg)</label>
       <input type="number" id="targetWeight" step="0.1" value="58" onchange="saveSettings()">
+    </div>
+    <div class="setting-row">
+      <label>Target Body Fat (%)</label>
+      <input type="number" id="targetBF" step="0.1" value="15" onchange="saveSettings()">
+    </div>
+    <div class="setting-row">
+      <label>Target Date</label>
+      <input type="date" id="targetDate" value="2026-12-31" onchange="saveSettings()">
     </div>
     <div class="setting-row">
       <label>Bike Duration (min)</label>
@@ -595,13 +605,15 @@ function loadObj(k, def) { try { return JSON.parse(localStorage.getItem(k)) || d
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
 function getSettings() {
-  return loadObj(KEYS.settings, { targetWeight: 58, bikeDuration: 25, height: 167 });
+  return loadObj(KEYS.settings, { targetWeight: 58, bikeDuration: 25, height: 167, targetBF: 15, targetDate: '2026-12-31' });
 }
 function saveSettings() {
   const s = {
     targetWeight: parseFloat(document.getElementById('targetWeight').value) || 58,
     bikeDuration: parseInt(document.getElementById('bikeDuration').value) || 25,
     height: parseFloat(document.getElementById('height').value) || 167,
+    targetBF: parseFloat(document.getElementById('targetBF').value) || 15,
+    targetDate: document.getElementById('targetDate').value || '2026-12-31',
   };
   save(KEYS.settings, s);
   if (document.getElementById('tab-weight').classList.contains('active')) renderWeightTab();
@@ -1022,6 +1034,36 @@ function movingAvg(arr, w) {
     if (i < w - 1) return null;
     return arr.slice(i - w + 1, i + 1).reduce((a, b) => a + b, 0) / w;
   });
+}
+
+function buildPrediction(values, lastDateStr, targetValue, targetDateStr, futureDays) {
+  const lastValue = values[values.length - 1];
+  const lastDate = new Date(lastDateStr);
+  const targetDate = new Date(targetDateStr);
+  const totalDays = Math.max(1, (targetDate - lastDate) / 86400000);
+  const dailyChange = (targetValue - lastValue) / totalDays;
+
+  const futureLabels = [];
+  const futureValues = [];
+  for (let i = 1; i <= futureDays; i++) {
+    const d = new Date(lastDate);
+    d.setDate(d.getDate() + i);
+    futureLabels.push(d.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }));
+    futureValues.push(+(lastValue + dailyChange * i).toFixed(2));
+  }
+
+  // sigma from recent variation around moving average
+  const recent = values.slice(-14);
+  const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+  const variance = recent.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, recent.length - 1);
+  const sigma = Math.max(0.05, Math.sqrt(variance));
+
+  const padding = Array(values.length - 1).fill(null);
+  const target = padding.concat([lastValue]).concat(futureValues);
+  const upper = padding.concat([lastValue]).concat(futureValues.map(v => +(v + 2 * sigma).toFixed(2)));
+  const lower = padding.concat([lastValue]).concat(futureValues.map(v => +(v - 2 * sigma).toFixed(2)));
+
+  return { futureLabels, target, upper, lower, sigma, dailyChange };
 }
 
 // ============================================================
@@ -1532,6 +1574,8 @@ function renderWeightTab() {
   const totalBf = last && first ? (last.bf - first.bf).toFixed(1) : '--';
   const leanNum = last ? last.weight * (100 - last.bf) / 100 : null;
   const lean = leanNum != null ? leanNum.toFixed(1) : '--';
+  const fatNum = last ? last.weight * last.bf / 100 : null;
+  const fat = fatNum != null ? fatNum.toFixed(1) : '--';
   const settings = getSettings();
   const heightM = (settings.height || 167) / 100;
   const ffmiNum = leanNum != null ? leanNum / (heightM * heightM) : null;
@@ -1550,6 +1594,7 @@ function renderWeightTab() {
     <div class="stat-card"><div class="stat-label">Weight Change</div><div class="stat-value" style="font-size:1.8rem;color:${parseFloat(totalW)<=0?'var(--success)':'var(--danger)'}">${totalW > 0?'+':''}${totalW} kg</div></div>
     <div class="stat-card"><div class="stat-label">BF Change</div><div class="stat-value" style="font-size:1.8rem;color:${parseFloat(totalBf)<=0?'var(--success)':'var(--danger)'}">${totalBf > 0?'+':''}${totalBf} %</div></div>
     <div class="stat-card"><div class="stat-label">Lean Mass</div><div class="stat-value" style="font-size:1.8rem;color:var(--accent2)">${lean} kg</div></div>
+    <div class="stat-card"><div class="stat-label">Fat Mass</div><div class="stat-value" style="font-size:1.8rem;color:var(--danger)">${fat} kg</div></div>
     <div class="stat-card"><div class="stat-label">FFMI</div><div class="stat-value" style="font-size:1.8rem;color:${ffmiColor}">${ffmi}</div><div style="font-size:0.75rem;color:var(--text2);margin-top:2px;">${ffmiLabel}</div></div>`;
 
   // Calorie balance
@@ -1572,75 +1617,47 @@ function renderWeightTab() {
     document.getElementById('bfInput').value = last.bf;
   }
 
-  // Chart
-  destroyChart('wt');
-  const ctx = document.getElementById('weightChart');
-  if (ctx && data.length >= 2) {
-    const ma = movingAvg(data.map(d => d.weight), 5);
-    charts.wt = new Chart(ctx, {
+  // Targets
+  const tWeight = settings.targetWeight || 58;
+  const tBF = settings.targetBF || 15;
+  const tFat = +(tWeight * tBF / 100).toFixed(2);
+  const tLean = leanNum != null ? leanNum : (tWeight * (100 - tBF) / 100);
+  const targetDateStr = settings.targetDate || '2026-12-31';
+  const lastDateStr = data[data.length - 1].date;
+  const FUTURE_DAYS = 14;
+
+  const pastLabels = data.map(d => new Date(d.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }));
+  const futurePadding = Array(FUTURE_DAYS).fill(null);
+
+  function makeChart(canvasId, chartKey, values, label, color, bgColor, targetVal, targetLabel) {
+    destroyChart(chartKey);
+    const ctxEl = document.getElementById(canvasId);
+    if (!ctxEl || data.length < 2) return;
+    const ma = movingAvg(values, 5);
+    const pred = buildPrediction(values, lastDateStr, targetVal, targetDateStr, FUTURE_DAYS);
+    const allLabels = pastLabels.concat(pred.futureLabels);
+    const valuesExt = values.concat(futurePadding);
+    const maExt = ma.concat(futurePadding);
+    charts[chartKey] = new Chart(ctxEl, {
       type: 'line',
       data: {
-        labels: data.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
+        labels: allLabels,
         datasets: [
-          { label: 'Weight', data: data.map(d=>d.weight), borderColor: '#6c5ce7', backgroundColor: 'rgba(108,92,231,0.1)', fill: true, tension: 0.2, pointRadius: 2 },
-          { label: '5-day MA', data: ma, borderColor: '#e17055', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
+          { label: label, data: valuesExt, borderColor: color, backgroundColor: bgColor, fill: true, tension: 0.2, pointRadius: 2 },
+          { label: '5-day MA', data: maExt, borderColor: '#e17055', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
+          { label: `Target ${targetLabel}`, data: pred.target, borderColor: '#fdcb6e', borderDash: [4,4], borderWidth: 2, pointRadius: 0, fill: false },
+          { label: 'Upper 2σ', data: pred.upper, borderColor: 'rgba(253,203,110,0.4)', borderDash: [2,2], pointRadius: 0, fill: '+1', backgroundColor: 'rgba(253,203,110,0.08)' },
+          { label: 'Lower 2σ', data: pred.lower, borderColor: 'rgba(253,203,110,0.4)', borderDash: [2,2], pointRadius: 0, fill: false },
         ]
-      }, options: CHART_OPTS
+      },
+      options: CHART_OPTS
     });
   }
 
-  // BF Chart
-  destroyChart('bf');
-  const bfCtx = document.getElementById('bfChart');
-  if (bfCtx && data.length >= 2) {
-    const bfMa = movingAvg(data.map(d => d.bf), 5);
-    charts.bf = new Chart(bfCtx, {
-      type: 'line',
-      data: {
-        labels: data.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
-        datasets: [
-          { label: 'Body Fat %', data: data.map(d=>d.bf), borderColor: '#fd79a8', backgroundColor: 'rgba(253,121,168,0.1)', fill: true, tension: 0.2, pointRadius: 2 },
-          { label: '5-day MA', data: bfMa, borderColor: '#fdcb6e', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
-        ]
-      }, options: CHART_OPTS
-    });
-  }
-
-  // Lean Mass Chart
-  destroyChart('lean');
-  const leanCtx = document.getElementById('leanChart');
-  if (leanCtx && data.length >= 2) {
-    const leanData = data.map(d => +(d.weight * (100 - d.bf) / 100).toFixed(2));
-    const leanMa = movingAvg(leanData, 5);
-    charts.lean = new Chart(leanCtx, {
-      type: 'line',
-      data: {
-        labels: data.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
-        datasets: [
-          { label: 'Lean Mass', data: leanData, borderColor: '#00b894', backgroundColor: 'rgba(0,184,148,0.1)', fill: true, tension: 0.2, pointRadius: 2 },
-          { label: '5-day MA', data: leanMa, borderColor: '#00cec9', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
-        ]
-      }, options: CHART_OPTS
-    });
-  }
-
-  // Fat Mass Chart
-  destroyChart('fat');
-  const fatCtx = document.getElementById('fatChart');
-  if (fatCtx && data.length >= 2) {
-    const fatData = data.map(d => +(d.weight * d.bf / 100).toFixed(2));
-    const fatMa = movingAvg(fatData, 5);
-    charts.fat = new Chart(fatCtx, {
-      type: 'line',
-      data: {
-        labels: data.map(d => new Date(d.date).toLocaleDateString('ja-JP',{month:'short',day:'numeric'})),
-        datasets: [
-          { label: 'Fat Mass', data: fatData, borderColor: '#e17055', backgroundColor: 'rgba(225,112,85,0.1)', fill: true, tension: 0.2, pointRadius: 2 },
-          { label: '5-day MA', data: fatMa, borderColor: '#fdcb6e', borderDash: [5,5], tension: 0.3, pointRadius: 0 },
-        ]
-      }, options: CHART_OPTS
-    });
-  }
+  makeChart('weightChart', 'wt', data.map(d => d.weight), 'Weight', '#6c5ce7', 'rgba(108,92,231,0.1)', tWeight, `${tWeight}kg`);
+  makeChart('bfChart', 'bf', data.map(d => d.bf), 'Body Fat %', '#fd79a8', 'rgba(253,121,168,0.1)', tBF, `${tBF}%`);
+  makeChart('leanChart', 'lean', data.map(d => +(d.weight * (100 - d.bf) / 100).toFixed(2)), 'Lean Mass', '#00b894', 'rgba(0,184,148,0.1)', tLean, `${tLean.toFixed(1)}kg`);
+  makeChart('fatChart', 'fat', data.map(d => +(d.weight * d.bf / 100).toFixed(2)), 'Fat Mass', '#e17055', 'rgba(225,112,85,0.1)', tFat, `${tFat}kg`);
 
   // Table
   const tbody = document.querySelector('#weightTable tbody');
@@ -1671,6 +1688,8 @@ function renderSettings() {
   document.getElementById('targetWeight').value = s.targetWeight;
   document.getElementById('bikeDuration').value = s.bikeDuration;
   document.getElementById('height').value = s.height || 167;
+  document.getElementById('targetBF').value = s.targetBF || 15;
+  document.getElementById('targetDate').value = s.targetDate || '2026-12-31';
 
   let html = '';
   SCHEDULE.forEach((sched, di) => {
